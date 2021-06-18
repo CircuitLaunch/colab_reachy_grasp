@@ -1,5 +1,8 @@
 <launch>
 
+<!-- Load reachy rosparam -->
+<rosparam command="load" file="$(find colab_reachy_grasp)/config/reachy_grasp.yaml" />
+
   <!-- We launch the core reachy model, rviz config and gazebo world from reachy moveit config (seperate ROS package)-->
   <include file="$(find colab_reachy_control)/launch/moveit.launch">
     <!-- <arg name="rviz_config" value="$(find reachy_gazebo_grasp)/rviz/demo_reachy.rviz"/> --> -->

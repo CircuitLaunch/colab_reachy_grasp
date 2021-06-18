@@ -141,98 +141,45 @@ class MoveGroupPythonInterfaceTutorial(object):
         #attempts to get the latest transform of the cube from world
         try:
             trans = self.tfBuffer.lookup_transform('pedestal', 'cube2',rospy.Time(0))
-            # cube_x = trans.transform.translation.x
-            # cube_y = trans.transform.translation.y
-            # cube_z = trans.transform.translation.z
-            # print(cube_x,cube_y,cube_z)
+
+            for a in msg.detections:
+                if a.id[0] == 5:
+                    cube_pose = geometry_msgs.msg.Pose()
+                    cube_pose.position = trans.transform.translation
+                    cube_pose.orientation = trans.transform.rotation
+                    self.on_cube_detected(cube_pose)
+
+
 
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
             rate.sleep()
 
 
-        for a in msg.detections:
-
-            if a.id[0] == 5:
-                cube_pose = geometry_msgs.msg.Pose()
-                cube_pose.position = trans.transform.translation
-                cube_pose.orientation = trans.transform.rotation
-                self.on_cube_detected(cube_pose)
-
-                '''
-                pose_goal = geometry_msgs.msg.Pose()
-                pose_goal.position.x = cube_x  - 0.07
-                pose_goal.position.y = cube_y
-                pose_goal.position.z = cube_z   + 0.145
-
-                quat = quaternion_from_euler (0.0, -1.57, 0.0)
-
-
-                pose_goal.orientation.x = quat[0]
-                pose_goal.orientation.y = quat[1]
-                pose_goal.orientation.z = quat[2]
-                pose_goal.orientation.w = quat[3]
-
-                self.move_group.set_pose_target(pose_goal)
-                rospy.loginfo("approach")
-                rospy.loginfo(pose_goal)
-                ## Now, we call the planner to compute the plan and execute it.
-                print("Executing motion")
-                # print(pose_goal)
-                plan = self.move_group.go(wait=True)
-
-                # Calling `stop()` ensures that there is no residual movement
-                self.move_group.stop()
-                # It is always good to clear your targets after planning with poses.
-                # Note: there is no equivalent function for clear_joint_value_targets()
-                self.move_group.clear_pose_targets()
-
-
-                rate.sleep()
-                rospy.loginfo("GOING TO THE CUBE NOW")
-
-
-                pose_goal = geometry_msgs.msg.Pose()
-                pose_goal.position.x = cube_x + 0.06
-                pose_goal.position.y = cube_y
-                pose_goal.position.z = cube_z   + 0.145
-
-
-                quat = quaternion_from_euler (0.0, -1.57, 0.0)
-
-
-                pose_goal.orientation.x = quat[0]
-                pose_goal.orientation.y = quat[1]
-                pose_goal.orientation.z = quat[2]
-                pose_goal.orientation.w = quat[3]
-
-                rospy.loginfo("graasp")
-                rospy.loginfo(pose_goal)
-                self.move_group.set_pose_target(pose_goal)
-
-                plan = self.move_group.go(wait=True)
-                self.move_group.stop()
-                self.move_group.clear_pose_targets()
-                '''
-
-
-
-
+       
 
     def grasping_state_init(self):
-        self._min_approach_error = 0.01     # TODO: determine a suitable minimum approach pose error
-        self._min_grip_error = 0.005        # TODO: determine a suitable minimum grip pose error
-        self._max_grip_load = 0.2
+        # self._min_approach_error = 0.01     # TODO: determine a suitable minimum approach pose error
+        # self._min_grip_error = 0.005        # TODO: determine a suitable minimum grip pose error
+        # self._max_grip_load = 0.2
         
-        # ADDED BY LIAM
-        self._approach_x_offset = 0.07
-        self._approach_y_offset = 0.0
-        self._approach_z_offset = 0.145
+        # self._approach_x_offset = 0.07
+        # self._approach_y_offset = 0.0
+        # self._approach_z_offset = 0.145
 
-        self._grasp_x_offset = 0.06
-        self._grasp_y_offset = 0.0
-        self._grasp_z_offset = 0.145
+        # self._grasp_x_offset = 0.06
+        # self._grasp_y_offset = 0.0
+        # self._grasp_z_offset = 0.145
+        
+        self._min_approach_error = rospy.get_param("MIN_APPROACH_ERROR")
+        self._min_grip_error = rospy.get_param("MIN_GRIP_ERROR")
+        self._max_grip_load = rospy.get_param("MAX_GRIP_LOAD")
+        self._approach_x_offset = rospy.get_param("APPROACH_X_OFFSET")
+        self._approach_y_offset = rospy.get_param("APPROACH_Y_OFFSET")
+        self._approach_z_offset = rospy.get_param("APPROACH_Z_OFFSET")
+        self._grasp_x_offset = rospy.get_param("GRASP_X_OFFSET")
+        self._grasp_y_offset = rospy.get_param("GRASP_Y_OFFSET")
+        self._grasp_z_offset = rospy.get_param("GRASP_Z_OFFSET")
 
-        # ADDED BY LIAM
 
         self._settings_mutex = Lock()
 
@@ -277,8 +224,6 @@ class MoveGroupPythonInterfaceTutorial(object):
         with self._settings_mutex:
             self._min_grip_error = val
 
-
-    #ADDED BY LIAM
     @property
     def approach_x_offset(self):
         local_val = 0
@@ -350,12 +295,6 @@ class MoveGroupPythonInterfaceTutorial(object):
     def grasp_z_offset(self, val):
         with self._settings_mutex:
             self._grasp_z_offset = val
-    #ADDED BY LIAM
-
-    @property
-    def get_cube_pose(self):
-        
-
 
     @property
     def max_grip_load(self):
@@ -433,18 +372,6 @@ class MoveGroupPythonInterfaceTutorial(object):
         with self._current_pose_mutex:
             self._current_pose = val
     '''
-
-
-# trans = self.tfBuffer.lookup_transform('pedestal', 'cube2',rospy.Time(0))
-#             cube_x = trans.transform.translation.x
-#             cube_y = trans.transform.translation.y
-#             cube_z = trans.transform.translation.z
-
-
-#                 pose_goal = geometry_msgs.msg.Pose()
-#                 pose_goal.position.x = cube_x + 0.06
-#                 pose_goal.position.y = cube_y
-#                 pose_goal.position.z = cube_z   + 0.145
 
 
     def calc_approach_pose(self, cube_pose):
@@ -540,6 +467,8 @@ class MoveGroupPythonInterfaceTutorial(object):
                     if self.distance(self.current_pose, local_approach_pose) <= self.min_approach_error:
                         approach_pose_attained = True
                         break
+
+                rospy.info("Completed approach")
                 # Do move to grasp pose
                 local_grasp_pose = self.grasp_pose
                 while(True):
@@ -569,6 +498,8 @@ class MoveGroupPythonInterfaceTutorial(object):
                 if grasp_pose_attained:
                     break
             local_grasp_pose = self.grasp_pose
+
+            rospy.info("Completed to goal")
             # Do grasp
             local_grasp_flag = False
             while(True):

@@ -1,0 +1,25 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "",
+        "limitSymbolsToIncludedHeaders": true
+      },
+      "includePath": [
+        "/home/liam/catkin_ws/devel/include/**",
+        "/opt/ros/noetic/include/**",
+        "/home/liam/catkin_ws/src/apriltag_ros/apriltag_ros/include/**",
+        "/home/liam/catkin_ws/src/arduino_serial/include/**",
+        "/home/liam/catkin_ws/src/colab_reachy_approach/include/**",
+        "/home/liam/catkin_ws/src/DynamixelSDK/ros/dynamixel_sdk/include/**",
+        "/home/liam/catkin_ws/src/ros_basics_tutorials/include/**",
+        "/home/liam/catkin_ws/src/rosserial/rosserial_server/include/**",
+        "/home/liam/catkin_ws/src/rosserial/rosserial_test/include/**",
+        "/home/liam/catkin_ws/src/usb_cam/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS"
+    }
+  ],
+  "version": 4
+}

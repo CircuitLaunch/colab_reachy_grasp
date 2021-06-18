@@ -1,0 +1,30 @@
+<launch>
+
+  <!-- We launch the core reachy model, rviz config and gazebo world from reachy moveit config (seperate ROS package)-->
+  <include file="$(find colab_reachy_control)/launch/moveit.launch">
+    <!-- <arg name="rviz_config" value="$(find reachy_gazebo_grasp)/rviz/demo_reachy.rviz"/> --> -->
+  </include>
+
+  <!-- We spawn the camera -->
+  <include file="$(find reachy_gazebo_grasp)/launch/spawn_camera.launch">
+  </include>
+
+<!-- We spawn the cube  -->
+    <include file="$(find reachy_gazebo_grasp)/launch/spawn_cube.launch">
+  </include>
+
+  <include file="$(find colab_reachy_tf)/launch/tf.launch">
+    <arg name="camera_device" value="/dev/video2" />
+    <arg name="use_rviz" value="false" />
+  </include> 
+
+  <node name="image_view" pkg="image_view" type="image_view" respawn="false" output="screen">
+<remap from="image" to="/tag_detections_image" />
+</node>
+
+<!-- We start a node that subscribes to the TF broadcast, and initiates a move_group command based on the cube pose  -->
+<node name="move_interface" pkg="reachy_gazebo_grasp" type="move_interface.py"
+	respawn="false" output="screen">
+</node>
+
+</launch>

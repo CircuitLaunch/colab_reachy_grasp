@@ -1,0 +1,32 @@
+<launch>
+<!--put the camera nodes it its own namespace-->
+    <group ns="camera1"> 
+    <!--config the camera args - these positions are used below to spawn the cube location broadcast the camera static TF-->
+        <arg name="robot_name" value="camera1" />
+        <arg name="x" value="0.5" />
+        <arg name="y" value="0.0" />
+        <arg name="z" value="2.25" />
+        <arg name="roll" value="0.0"/>
+        <arg name="pitch" value="1.6"/>
+        <arg name="yaw" value="0.0" />
+        <arg name="robot_file" value="$(find reachy_gazebo_grasp)/urdf/camera1.urdf" />
+
+
+        <param name="robot_description" command="cat '$(arg robot_file)'"/>
+
+        <!--This prefix puts the robot state publisher TF into the camera1 namespace-->
+        <param name="tf_prefix" value="camera1"></param>
+
+        <!-- <node name="$(arg robot_name)_spawn_urdf" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
+        args="-file $(arg robot_file) -urdf -x $(arg x) -y $(arg y) -z $(arg z)  -R $(arg roll) -P $(arg pitch) -Y $(arg yaw) -model $(arg robot_name)"/> -->
+        
+        <!--Since the camera never moves, we use a static transform-->
+        <node pkg="tf" type="static_transform_publisher" name="camera1_broadcaster" args="$(arg x) $(arg y) $(arg z) $(arg yaw) $(arg pitch) $(arg roll) world camera_link 100" />
+
+        <!--we then broadcast the camera joint states and robot stats for TF to consume. Even though the 
+        camera is in essence a single joint, we still need this becuase the plugin attaches to a synthetic internal optical frame-->
+        <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher"/>
+        <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
+
+    </group>
+</launch>

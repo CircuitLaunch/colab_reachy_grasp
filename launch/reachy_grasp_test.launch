@@ -1,0 +1,31 @@
+<launch>
+  <!-- <include file="$(find reachy_moveit_config)/launch/demo_gazebo.launch">
+    <arg name="urdf_path" value="$(find reachy_description)/reachy_urdf.urdf"/>
+    <arg name="rviz_config" value="$(find reachy_gazebo_grasp)/demo1.rviz"/>
+  </include> -->
+  <include file="$(find colab_reachy_control)/launch/moveit.launch">
+    <!-- <arg name="urdf_path" value="$(find reachy_description)/reachy_urdf.urdf"/> -->
+    <!-- <arg name="rviz_config" value="$(find reachy_gazebo_grasp)/demo1.rviz"/> -->
+  </include>
+
+
+  <!-- We spawn the camera (NOT SPAWNING BUT CREATS THE TF TREE FOR CAMERA)-->
+  <include file="$(find reachy_gazebo_grasp)/launch/spawn_camera.launch">
+  </include>
+
+<!-- We spawn the cube  (NOT SPAWNING BUT CREATS THE TF TREE FOR CUBE)-->
+    <include file="$(find reachy_gazebo_grasp)/launch/spawn_cube.launch">
+  </include>
+
+
+  <include file="$(find colab_reachy_tf)/launch/tf.launch">
+    <arg name="camera_device" value="/dev/video2" />
+    <arg name="use_rviz" value="false" />
+  </include> 
+
+    <node pkg="reachy_gazebo_grasp" type="move_interface.py" name="move_arm_to_cube" respawn="false" output="screen"/> -->
+    <node name="move_interface" pkg="reachy_gazebo_grasp" type="move_interface.py"
+	respawn="false" output="screen"/>
+
+
+</launch>

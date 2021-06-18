@@ -1,0 +1,35 @@
+<launch>
+
+    <group ns="camera">
+        <param name="tf_prefix" value="camera_tf"/>
+        <include file="$(find colab_reachy_approach)/launch/spawn_urdf.launch">
+            <arg name="robot_name" value="camera" />
+            <arg name="x" value="0.25" />
+            <arg name="y" value="0.0" />
+            <arg name="z" value="2.25" />
+            <arg name="roll" value="0.0"/>
+            <arg name="pitch" value="1.6"/>
+            <arg name="yaw" value="0.0" />
+            <arg name="urdf_robot_file" value="$(find colab_reachy_approach)/urdf/camera.urdf" />
+            <arg name="frame_id" value="world" />
+            <arg name="child_frame_id" value="camera_link" />
+        </include>
+    </group>
+
+    <group ns="cube">
+        <param name="tf_prefix" value="cube_tf"/>
+        <include file="$(find colab_reachy_approach)/launch/spawn_urdf.launch">
+            <arg name="robot_name" value="cube" />
+            <arg name="x" value="0.0" />
+            <arg name="y" value="0.0" />
+            <arg name="z" value="0.1" />
+            <arg name="roll" value="0.0"/>
+            <arg name="pitch" value="0.0"/>
+            <arg name="yaw" value="0.0" />
+            <arg name="urdf_robot_file" value="$(find colab_reachy_approach)/urdf/cube.urdf" />
+            <arg name="frame_id" value="april_tag5" /> 
+            <arg name="child_frame_id" value="camera_link" />
+        </include>
+    </group>
+
+</launch>

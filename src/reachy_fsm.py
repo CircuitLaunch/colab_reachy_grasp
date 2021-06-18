@@ -18,7 +18,6 @@ class Approach(smach.State):
         #     return 'outcome1'
         # else:
         #     return 'outcome2'
-# ?        if 
 
 
 # define state Idle. 

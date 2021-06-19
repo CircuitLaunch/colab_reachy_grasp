@@ -404,12 +404,12 @@ class MoveGroupPythonInterfaceTutorial(object):
 
     def go_to_pose(self, pose):
 
-        # self.move_group.set_pose_target(pose)
+        self.move_group.set_pose_target(pose)
         plan = self.move_group.plan()
-        rospy.loginfo(plan)
-        if plan[0] == MoveItErrorCodes.SUCCESS:   
+        
+        if plan[0]:   
             rospy.loginfo("FOUND PLAN") 
-            self.move_group.execute(plan, wait=False)
+            self.move_group.execute(plan[1], wait=False)
             self.trajectory_in_progress = True
         else:
             self.trajectory_in_progress = False

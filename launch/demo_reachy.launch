@@ -9,15 +9,15 @@
   </include>
 
   <!-- We spawn the camera -->
-  <include file="$(find reachy_gazebo_grasp)/launch/spawn_camera.launch">
+  <include file="$(find colab_reachy_grasp)/launch/spawn_camera.launch">
   </include>
 
 <!-- We spawn the cube  -->
-    <include file="$(find reachy_gazebo_grasp)/launch/spawn_cube.launch">
+    <include file="$(find colab_reachy_grasp)/launch/spawn_cube.launch">
   </include>
 
   <include file="$(find colab_reachy_tf)/launch/tf.launch">
-    <arg name="camera_device" value="/dev/video2" />
+    <arg name="camera_device" value="/dev/video0" /> 
     <arg name="use_rviz" value="false" />
   </include> 
 
@@ -26,7 +26,7 @@
 </node>
 
 <!-- We start a node that subscribes to the TF broadcast, and initiates a move_group command based on the cube pose  -->
-<node name="move_interface" pkg="reachy_gazebo_grasp" type="move_interface.py"
+<node name="move_interface" pkg="colab_reachy_grasp" type="move_interface.py"
 	respawn="false" output="screen">
 </node>
 

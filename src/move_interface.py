@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import math
+from os import RTLD_GLOBAL
 import time
 import tf2_ros
 import sys
@@ -7,13 +8,14 @@ import copy
 import rospy
 import moveit_commander
 import moveit_msgs.msg
+from moveit_msgs.msg import MoveItErrorCodes
 import geometry_msgs.msg
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from apriltag_ros.msg import AprilTagDetection, AprilTagDetectionArray
 from math import pi, tau, dist, fabs, cos
 from std_msgs.msg import String
 from moveit_commander.conversions import pose_to_list
-from threading import Lock
+from threading import Lock, Thread
 ## END_SUB_TUTORIAL
 
 
@@ -122,6 +124,8 @@ class MoveGroupPythonInterfaceTutorial(object):
         self.spin_rate = rospy.Rate(30)
 
         self.grasping_state_init()
+        self.grasping_thread = Thread(target=self.grasping_state_loop)
+        self.grasping_thread.start()
 
     # def execute_to_goal(self, msg):
     #   appraoch_to_goal(self, msg)
@@ -132,18 +136,18 @@ class MoveGroupPythonInterfaceTutorial(object):
         #initialize cube position and looping rate
         rate = rospy.Rate(5.0)
         # rate2 = rospy.Rate(1)
-        cube_x = 0
-        cube_y = 0
-        cube_z = 0
+        # cube_x = 0
+        # cube_y = 0
+        # cube_z = 0
 
 
         # rate2.sleep()
         #attempts to get the latest transform of the cube from world
         try:
             trans = self.tfBuffer.lookup_transform('pedestal', 'cube2',rospy.Time(0))
-
             for a in msg.detections:
                 if a.id[0] == 5:
+                    # rospy.loginfo("Found apriltag")
                     cube_pose = geometry_msgs.msg.Pose()
                     cube_pose.position = trans.transform.translation
                     cube_pose.orientation = trans.transform.rotation
@@ -158,20 +162,8 @@ class MoveGroupPythonInterfaceTutorial(object):
        
 
     def grasping_state_init(self):
-        # self._min_approach_error = 0.01     # TODO: determine a suitable minimum approach pose error
-        # self._min_grip_error = 0.005        # TODO: determine a suitable minimum grip pose error
-        # self._max_grip_load = 0.2
-        
-        # self._approach_x_offset = 0.07
-        # self._approach_y_offset = 0.0
-        # self._approach_z_offset = 0.145
-
-        # self._grasp_x_offset = 0.06
-        # self._grasp_y_offset = 0.0
-        # self._grasp_z_offset = 0.145
-        
-        self._min_approach_error = rospy.get_param("MIN_APPROACH_ERROR")
-        self._min_grip_error = rospy.get_param("MIN_GRIP_ERROR")
+        self._min_approach_error = rospy.get_param("MIN_APPROACH_ERROR") # TODO: determine a suitable minimum approach pose error
+        self._min_grip_error = rospy.get_param("MIN_GRIP_ERROR") # TODO: determine a suitable minimum grip pose error
         self._max_grip_load = rospy.get_param("MAX_GRIP_LOAD")
         self._approach_x_offset = rospy.get_param("APPROACH_X_OFFSET")
         self._approach_y_offset = rospy.get_param("APPROACH_Y_OFFSET")
@@ -207,7 +199,7 @@ class MoveGroupPythonInterfaceTutorial(object):
             local_val = self._min_approach_error
         return local_val
 
-    @min_approach_error
+    @min_approach_error.setter
     def min_approach_error(self, val):
         with self._settings_mutex:
             self._min_approach_error = val
@@ -219,7 +211,7 @@ class MoveGroupPythonInterfaceTutorial(object):
             local_val = self._min_grip_error
         return local_val
 
-    @min_grip_error
+    @min_grip_error.setter
     def min_grip_error(self, val):
         with self._settings_mutex:
             self._min_grip_error = val
@@ -303,7 +295,7 @@ class MoveGroupPythonInterfaceTutorial(object):
             local_val = self._max_grip_load
         return local_val
 
-    @max_grip_load
+    @max_grip_load.setter
     def max_grip_load(self, val):
         with self._settings_mutex:
             self._max_grip_load = val
@@ -358,7 +350,7 @@ class MoveGroupPythonInterfaceTutorial(object):
 
     @property
     def current_pose(self):
-        return self.move_group.get_current_pose()
+        return self.move_group.get_current_pose().pose
         '''
         local_pose = None
         with self._current_pose_mutex:
@@ -411,13 +403,22 @@ class MoveGroupPythonInterfaceTutorial(object):
         return math.sqrt(dx*dx + dy*dy + dz*dz)
 
     def go_to_pose(self, pose):
-        self.trajectory_in_progress = True
-        self.move_group.set_pose_target(pose)
-        self.move_group.go(wait = False)
+
+        # self.move_group.set_pose_target(pose)
+        plan = self.move_group.plan()
+        rospy.loginfo(plan)
+        if plan[0] == MoveItErrorCodes.SUCCESS:   
+            rospy.loginfo("FOUND PLAN") 
+            self.move_group.execute(plan, wait=False)
+            self.trajectory_in_progress = True
+        else:
+            self.trajectory_in_progress = False
+            rospy.loginfo("no plan")
+        
 
     def abort_trajectory(self):
         self.move_group.stop()
-        self.move_group.clear_pose_target()
+        self.move_group.clear_pose_targets()
         self.trajectory_in_progress = False
 
     def tighten_grip(self):
@@ -441,7 +442,7 @@ class MoveGroupPythonInterfaceTutorial(object):
                 approach_pose_attained = False
                 grasp_pose_attained = False
                 # Do move to approach pose
-                local_approach_pose = self.approach_pose
+                local_approach_pose = copy.deepcopy(self.approach_pose)
                 while(True):
                     self.spin_rate.sleep()
                     if self.abort or rospy.is_shutdown():
@@ -451,7 +452,7 @@ class MoveGroupPythonInterfaceTutorial(object):
                         # Determine current pose
                     '''
                     # If no trajectory being executed
-                    if not self.trajectory_in_progress():
+                    if not self.trajectory_in_progress:
                         # trigger trajectory
                         self.go_to_pose(local_approach_pose)
                     # Else
@@ -461,7 +462,7 @@ class MoveGroupPythonInterfaceTutorial(object):
                             # abort current trajectory
                             self.abort_trajectory()
                             # trigger new trajectory
-                            local_approach_pose = self.approach_pose
+                            local_approach_pose = copy.deepcopy(self.approach_pose)
                             self.go_to_pose(local_approach_pose)
                     # Repeat move to approach pose while distance between current pose and approach pose > threshold and not abort
                     if self.distance(self.current_pose, local_approach_pose) <= self.min_approach_error:
@@ -470,7 +471,7 @@ class MoveGroupPythonInterfaceTutorial(object):
 
                 rospy.info("Completed approach")
                 # Do move to grasp pose
-                local_grasp_pose = self.grasp_pose
+                local_grasp_pose = copy.deepcopy(self.grasp_pose)
                 while(True):
                     self.spin_rate.sleep()
                     if self.abort or rospy.is_shutdown():
@@ -480,7 +481,7 @@ class MoveGroupPythonInterfaceTutorial(object):
                         # Determine current pose
                     '''
                     # If no trajectory being executed
-                    if not self.trajectory_in_progress():
+                    if not self.trajectory_in_progress:
                         # trigger trajectory
                         self.go_to_pose(local_grasp_pose)
                     # Else
@@ -497,7 +498,7 @@ class MoveGroupPythonInterfaceTutorial(object):
                 # Repeat move to approach pose and move to grasp pose while distance between current pose and grasp pose > threshold and not abort
                 if grasp_pose_attained:
                     break
-            local_grasp_pose = self.grasp_pose
+            local_grasp_pose = copy.deepcopy(self.grasp_pose)
 
             rospy.info("Completed to goal")
             # Do grasp

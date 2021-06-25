@@ -5,7 +5,6 @@
   <arg name="image_topic" default="image_rect" />
 
   <arg name="camera_device" default="/dev/video2" />
-  <arg name="use_rviz" default="true" />
   <arg name="node_namespace" default="apriltag_ros_continuous_node" />
 
   <include file="$(find colab_reachy_camera)/launch/camera_image_and_info.launch">
@@ -26,6 +25,6 @@
     <param name="publish_tf" type="bool" value='false' />
   </node>
 
-  <node pkg="colab_reachy_grasp" type="apriltag_topic_pub.py" name="apriltag_topic_publisher" />
+  <node pkg="colab_reachy_grasp" type="apriltag_topic_pub.py" name="apriltag_topic_publisher" output="screen" />
 
 </launch>

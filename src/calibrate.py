@@ -10,18 +10,13 @@ import time
 
 class Calibrator:
     def __init__(self):
-        robot = moveit_commander.RobotCommander()
-        right_group = moveit_commander.MoveGroupCommander('right_arm')
-        left_group = moveit_commander.MoveGroupCommander('left_arm')
-
-        self.rightTagTopic = rospy.get_param('/calibrate/right_april_tag_topic')
-        self.leftTagTopic = rospy.get_param('/calibrate/left_april_tag_topic')
+        self.tagTopic = rospy.get_param('/calibrate/april_tag_topic')
         self.minx = ropsy.get_param('/calibrate/min_x')
         self.maxx = ropsy.get_param('/calibrate/max_x')
         self.miny = ropsy.get_param('/calibrate/min_y')
         self.maxy = ropsy.get_param('/calibrate/max_y')
-        self.minz = ropsy.get_param('/calibrate/min_x')
-        self.maxz = ropsy.get_param('/calibrate/max_x')
+        self.minz = ropsy.get_param('/calibrate/min_z')
+        self.maxz = ropsy.get_param('/calibrate/max_z')
         self.divx = rospy.get_param('/calibrate/div_x')
         self.divx = rospy.get_param('/calibrate/div_y')
         self.divx = rospy.get_param('/calibrate/div_z')
@@ -30,8 +25,7 @@ class Calibrator:
         self.stepz = (self.maxz - self.minz) / self.divz
         self._isExecuting = False
         self._isExecutingLock = Lock()
-        self._rightTagPose = None
-        self._leftTagPose = None
+        self._tagPose = None
         self._tagPoseLock = Lock()
 
         self.hertz = rospy.Rate(30)
@@ -50,34 +44,27 @@ class Calibrator:
 
     def getAprilTagPosition(self, side):
         x = 0.0, y = 0.0, z = 0.0
-        if side == 'right':
-            with self._tagPoseLock:
-                x = self.rightTagPose.position.x
-                y = self.rightTagPose.position.y
-                z = self.rightTagPose.position.z
-        if side == 'left':
-            with self._tagPoseLock:
-                x = self.leftTagPose.position.x
-                y = self.leftTagPose.position.y
-                z = self.leftTagPose.position.z
+        with self._tagPoseLock:
+            x = self._tagPose.position.x
+            y = self._tagPose.position.y
+            z = self._tagPose.position.z
         return x, y, z
 
-    def setRightAprilTagPose(self, pose):
+    def setAprilTagPose(self, pose):
         with self.tagPoseLock:
-            self._rightTagPose = pose
-
-    def setLeftAprilTagPose(self, pose):
-        with self._tagPoseLock:
-            self._leftTagPose = pose
+            self._tagPose = pose
 
     def setTelemetry(self, telem):
         passs
 
     def createMaps(self, side):
-        rightTagSub = rospy.Subscriber(self.rightTagName, Pose, self.setRightAprilTagPose)
-        leftTagSub = rospy.Subscriber(self.leftTagName, Pose, self.setLeftAprilTagPose)
-        telemSub = rospy.Subscriber('dxl_telemetry', Telemetry, self.setTelemetry)
+        robot = moveit_commander.RobotCommander()
+        right_group = moveit_commander.MoveGroupCommander('right_arm')
+        left_group = moveit_commander.MoveGroupCommander('left_arm')
+        groups = {'right': right_group, 'left': left_group }
 
+        tagSub = rospy.Subscriber(self.tagTopic, Pose, self.setAprilTagPose)
+        telemSub = rospy.Subscriber('dxl_telemetry', Telemetry, self.setTelemetry)
 
         reachyRelax = rospy.ServiceProxy('relax', Relax)
         reachyRecover = rospy.ServiceProxy('recover', Recover)
@@ -86,12 +73,9 @@ class Calibrator:
             'right': [10, 11, 12, 13, 14, 15, 16, 17],
             'left': [20, 21, 22, 23, 24, 25, 26, 27]
         }
-        groups = {'right': self.right_group, 'left': self.left_group }
 
         currentIds = dxl_ids[side]
         self.current_group = groups[side]
-        rsub = rospy.Subscriber(self.rightTagTopic, Pose, setRightAprilTagPose)
-        lsub = rospy.Subscriber(self.leftTagTopic, Pose, setLeftAprilTagPose)
         q = quaternion_from_euler(0.0, -np.pi*0.5, 0.0)
         map = np.array([None] * ()(self.divx+1) * (self.divy+1) * (self.divz+1)))
         map.reshape(self.divx+1, self.divy+1, self.divz+1)
@@ -127,7 +111,7 @@ class Calibrator:
                         rospy.loginfo(f'({i}, {j}, {k}).({x}, {y}, {z}): Recovering')
                         recovReq = RecoverRequest()
                         recovReq.dxl_ids = currentIds
-                        recover(recovRew)
+                        recover(recovReq)
                         rospy.loginfo(f'({i}, {j}, {k}).({x}, {y}, {z}): Retrying')
                         # Try again
 
@@ -165,10 +149,8 @@ class Calibrator:
         return result
 
     def trajectoryLoop(self, group, plan):
-        # grab semaphore
         group.execute(plan, wait = True)
         self.isExecuting = False
-        # signal completion
 
 def main():
     moveit_commander.roscpp_initialize(sys.argv)
@@ -195,4 +177,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    

@@ -1,0 +1,52 @@
+<launch>
+  <!-- <include file="$(find reachy_moveit_config)/launch/demo_gazebo.launch">
+    <arg name="urdf_path" value="$(find reachy_description)/reachy_urdf.urdf"/>
+    <arg name="rviz_config" value="$(find reachy_gazebo_grasp)/demo1.rviz"/>
+  </include> -->
+  <include file="$(find colab_reachy_control)/launch/apriltag_topics.launch" />
+
+  <include file="$(find colab_reachy_control)/launch/moveit.launch" />
+    <!-- <arg name="urdf_path" value="$(find reachy_description)/reachy_urdf.urdf"/> -->
+    <!-- <arg name="rviz_config" value="$(find reachy_gazebo_grasp)/demo1.rviz"/> -->
+
+
+  <!-- We spawn the camera (NOT SPAWNING BUT CREATS THE TF TREE FOR CAMERA)-->
+  <include file="$(find reachy_gazebo_grasp)/launch/spawn_camera.launch /">
+
+  <!-- We spawn the cube  (NOT SPAWNING BUT CREATS THE TF TREE FOR CUBE)-->
+  <include file="$(find reachy_gazebo_grasp)/launch/spawn_cube.launch" />
+
+
+  <include file="$(find colab_reachy_tf)/launch/tf.launch">
+    <arg name="camera_device" value="/dev/video2" />
+    <arg name="use_rviz" value="false" />
+  </include>
+
+  <node name="calibrate" pkg="reachy_gazebo_grasp" type="calibrate.py" respawn="false" output="screen">
+    <param name="side" value="right" />
+    <param name="save_file_path" value="~/Documents/ReachyRightArmErrorMap.txt" />
+    <param name="april_tag_topic" value="" />
+    <param name="min_x" value="100.0" />
+    <param name="max_x" value="200.0" />
+    <param name="min_y" value="0" />
+    <param name="max_y" value="100.0" />
+    <param name="min_z" value="-50.0" />
+    <param name="max_z" value="-150.0" />
+    <param name="div_x" value="2" />
+    <param name="div_y" value="2" />
+    <param name="div_z" value="2" />
+    <!--
+    <param name="min_x" value="337.5" />
+    <param name="max_x" value="637.5" />
+    <param name="min_y" value="-77.5" />
+    <param name="max_y" value="827.5" />
+    <param name="min_z" value="-37.5" />
+    <param name="max_z" value="-637.5" />
+    <param name="div_x" value="30" />
+    <param name="div_y" value="89" />
+    <param name="div_z" value="60" />
+    -->
+  </node>
+
+
+</launch>

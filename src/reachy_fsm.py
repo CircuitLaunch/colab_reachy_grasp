@@ -3,22 +3,14 @@
 import rospy
 import smach
 from threading import Lock
-from apriltag_ros.msg import AprilTagDetection, AprilTagDetectionArray
-
-# define state Approach
-class Approach(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['no_target_detected','target_detected'])
-        self._mutex = Lock()
-
-    def execute(self, userdata):
-        rospy.loginfo('Executing state FOO')
+from apriltag_ros.msg import AprilTagDetectionArray
+from geometry_msgs.msg import PoseStamped
 
 
 # define state Idle. 
 class Idle(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['Approach'])
+        smach.State.__init__(self, outcomes=['no_target_detected','target_detected','preempted'])
         rospy.Subscriber('/tag_detections',
                          AprilTagDetectionArray,
                          self._idle_callback)
@@ -29,65 +21,75 @@ class Idle(smach.State):
         with self._mutex:
             self.data = msg.detections
 
-        while not rospy.is_shutdown():
-            with self._mutex:
-                for aprilTag in msg.detections:
-                    if aprilTag.id[0] == 5:
-                        # go to approach
-                        pass
+        # while not rospy.is_shutdown():
+        #     with self._mutex:
+        #         for aprilTag in msg.detections:
+        #             if aprilTag.id[0] == 5:
+        #                 # go to approach
+        #                 pass
 
 
     
     def execute(self, userdata):
         rospy.loginfo('Executing state BAR')
-        return 'outcome2'
+        return 'preempted'
     
-
-# define state Align. 
-class Align(smach.State):
+# define state Approach
+class Approach(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['outcome2'])
+        smach.State.__init__(self, outcomes=['target_changed','target_locked','preempted'])
+        self._mutex = Lock()
+
+    def execute(self, userdata):
+        rospy.loginfo('Executing state FOO')
+
+
+# define state Extend. 
+class Extend(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['target_changed','target_locked','preempted',])
 
     def execute(self, userdata):
         rospy.loginfo('Executing state BAR')
-        return 'outcome2'
+        return 'preempted'
         
 
 # define state Grasp. This is actually moving the gripper to hold the cube
 class Grasp(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['outcome2'])
+        smach.State.__init__(self, outcomes=['finished','preempted'])
 
     def execute(self, userdata):
         rospy.loginfo('Executing state BAR')
-        return 'outcome2'
-        
-
-# define state RestArm. This will rest the arm 
-class RestArm(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['outcome2'])
-
-    def execute(self, userdata):
-        rospy.loginfo('Executing state BAR')
-        return 'outcome2'
+        return 'preempted'
 
 
 # main
 def main():
     rospy.init_node('smach_example_state_machine')
 
+    # Subscribe to apriltags (These should go under moveit_interface)
+    # rospy.Subscriber('cubePose',PoseStamped, cube_pose_callback)
+    # rospy.Subscriber('reachyPose',PoseStamped, reachy_pose_callback)
+        
+
     # Create a SMACH state machine
-    sm = smach.StateMachine(outcomes=['outcome4', 'outcome5'])
+    sm = smach.StateMachine(outcomes=['exit'])
 
     # Open the container
     with sm:
         # Add states to the container
-        smach.StateMachine.add('FOO', Foo(), 
-                               transitions={'outcome1':'BAR', 
-                                            'outcome2':'outcome4'})
-        smach.StateMachine.add('BAR', Bar(), 
-                               transitions={'outcome2':'FOO'})
+        smach.StateMachine.add('IDLE', Idle(), 
+                               transitions={'no_target_detected':'IDLE', 
+                                            'target_detected':'APPROACH',
+                                            'preempted': 'exit'})
+        smach.StateMachine.add('APPROACH', Approach(), 
+                               transitions={'target_changed':'APPROACH',
+                                            'target_locked':'EXTEND',
+                                            'preempted': 'exit'})
+        smach.StateMachine.add('GRASP', Grasp(), 
+                               transitions={'finished':'exit',
+                                            'preempted': 'exit'})
 
     # Execute SMACH plan
     outcome = sm.execute()

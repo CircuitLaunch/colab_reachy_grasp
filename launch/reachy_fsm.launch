@@ -1,8 +1,16 @@
 <launch>
 
-  <include file="$(find colab_reachy_grasp)/launch/apriltag_topics.launch">
-  </include>
+  <!-- This launch file sets up the camera as well as the apriltagros. 
+       It also  publishes the cubepose and the reachychestpose topics that can be used later -->
+  <include file="$(find colab_reachy_grasp)/launch/apriltag_topics.launch"/>
 
-  <node pkg="colab_reachy_grasp" type="apriltag_topic_pub.py" name="apriltag_topics_pub" output="screen" /> 
+
+  <!-- This node subscribes to the tag detections and publishes with timestamp to tf -->
+  <node pkg="colab_reachy_grasp" type="tag_detection_to_tf.py" name="tag_detection_to_tf" />
+  <!-- This node publishes a static transform from the apriltag to the pedestal -->
+  <node pkg="tf" type="static_transform_publisher" name="apriltag_reachy_chest" args="-0.05 0 -1 0 0 0 1 apriltag_4 pedestal 100" /> 
+
+  <!-- <node pkg="rviz" type="rviz" name="rviz" args="-d $(find colab_reachy_tf)/rviz/default.rviz" if="$(arg use_rviz)"/> -->
+
 
 </launch>

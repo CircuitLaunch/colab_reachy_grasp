@@ -1,0 +1,8 @@
+<launch>
+
+  <include file="$(find colab_reachy_grasp)/launch/apriltag_topics.launch">
+  </include>
+
+  <node pkg="colab_reachy_grasp" type="apriltag_topic_pub.py" name="apriltag_topics_pub" output="screen" /> 
+
+</launch>

@@ -13,11 +13,6 @@ class Approach(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo('Executing state FOO')
-        # if self.counter < 3:
-        #     self.counter += 1
-        #     return 'outcome1'
-        # else:
-        #     return 'outcome2'
 
 
 # define state Idle. 

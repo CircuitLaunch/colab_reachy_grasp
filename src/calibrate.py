@@ -1,49 +1,68 @@
 #!/usr/bin/env python3
+import math
+from os.path import expanduser
+import sys
 import rospy
+import moveit_commander
 from geometry_msgs.msg import Pose
 from tf.transformations import *
-import numpy as np
-from threading import Lock
 from colab_reachy_control.msg import Telemetry
-from colab_reachy_control.srv import Rest, RestRequest, Relax, RelaxRequest
+from colab_reachy_control.srv import Recover, RecoverRequest, Relax, RelaxRequest, Zero, ZeroRequest
+from threading import Lock, Thread
+import numpy as np
 import time
 
 class Calibrator:
     def __init__(self):
         self.tagTopic = rospy.get_param('/calibrate/april_tag_topic')
-        self.minx = ropsy.get_param('/calibrate/min_x')
-        self.maxx = ropsy.get_param('/calibrate/max_x')
-        self.miny = ropsy.get_param('/calibrate/min_y')
-        self.maxy = ropsy.get_param('/calibrate/max_y')
-        self.minz = ropsy.get_param('/calibrate/min_z')
-        self.maxz = ropsy.get_param('/calibrate/max_z')
+        self.minx = rospy.get_param('/calibrate/min_x')
+        self.maxx = rospy.get_param('/calibrate/max_x')
+        self.miny = rospy.get_param('/calibrate/min_y')
+        self.maxy = rospy.get_param('/calibrate/max_y')
+        self.minz = rospy.get_param('/calibrate/min_z')
+        self.maxz = rospy.get_param('/calibrate/max_z')
         self.divx = rospy.get_param('/calibrate/div_x')
-        self.divx = rospy.get_param('/calibrate/div_y')
-        self.divx = rospy.get_param('/calibrate/div_z')
+        self.divy = rospy.get_param('/calibrate/div_y')
+        self.divz = rospy.get_param('/calibrate/div_z')
         self.stepx = (self.maxx - self.minx) / self.divx
         self.stepy = (self.maxy - self.miny) / self.divy
         self.stepz = (self.maxz - self.minz) / self.divz
         self._isExecuting = False
         self._isExecutingLock = Lock()
-        self._tagPose = None
+        self._tagPose = Pose()
         self._tagPoseLock = Lock()
-
+        self._errorIds = None
+        self._errorIdsLock = Lock()
         self.hertz = rospy.Rate(30)
 
     @property
     def isExecuting(self):
         val = False
-        self._isExecutingLock
+        with self._isExecutingLock:
             val = self._isExecuting
         return val
 
     @isExecuting.setter
     def isExecuting(self, val):
-        self._isExecutingLock
+        with self._isExecutingLock:
             self._isExecuting = val
 
+    @property
+    def errorIds(self):
+        val = None
+        with self._errorIdsLock:
+            val = self._errorIds
+        return val
+
+    @errorIds.setter
+    def errorIds(self, val):
+        with self._errorIdsLock:
+            self._errorIds = val
+
     def getAprilTagPosition(self, side):
-        x = 0.0, y = 0.0, z = 0.0
+        x = 0.0
+        y = 0.0
+        z = 0.0
         with self._tagPoseLock:
             x = self._tagPose.position.x
             y = self._tagPose.position.y
@@ -54,10 +73,20 @@ class Calibrator:
         with self.tagPoseLock:
             self._tagPose = pose
 
-    def setTelemetry(self, telem):
-        passs
+    def setTelemetry(self, telem: Telemetry):
+        dxlIds = telem.dxl_ids
+        errorBits = telem.error_bits
+        errorIds = []
+        self.errorIds = None
+        thereWereErrors = False
+        for i in range(0, len(dxlIds)):
+            if errorBits[i] != 0:
+                thereWereErrors = True
+                self.errorIds.append(dxlIds[i])
+        if thereWereErrors:
+            self.errorIds = errorIds
 
-    def createMaps(self, side):
+    def createMap(self, side):
         robot = moveit_commander.RobotCommander()
         right_group = moveit_commander.MoveGroupCommander('right_arm')
         left_group = moveit_commander.MoveGroupCommander('left_arm')
@@ -66,53 +95,71 @@ class Calibrator:
         tagSub = rospy.Subscriber(self.tagTopic, Pose, self.setAprilTagPose)
         telemSub = rospy.Subscriber('dxl_telemetry', Telemetry, self.setTelemetry)
 
-        reachyRelax = rospy.ServiceProxy('relax', Relax)
-        reachyRecover = rospy.ServiceProxy('recover', Recover)
+        self.zero = rospy.ServiceProxy('zero', Zero)
+        self.reachyRelax = rospy.ServiceProxy('relax', Relax)
+        self.reachyRecover = rospy.ServiceProxy('recover', Recover)
 
         dxl_ids = {
             'right': [10, 11, 12, 13, 14, 15, 16, 17],
             'left': [20, 21, 22, 23, 24, 25, 26, 27]
         }
 
+        restPose = Pose()
+        restPose.position.x = 0.0
+        restPose.position.y = 0.2
+        restPose.position.z = 0.354
+        q = quaternion_from_euler(0.0, 0.0, 0.0)
+        restPose.orientation.x = q[0]
+        restPose.orientation.y = q[1]
+        restPose.orientation.z = q[2]
+        restPose.orientation.w = q[3]
+
+        readyPose = Pose()
+        readyPose.position.x = 0.1
+        readyPose.position.y = 0.2
+        readyPose.position.z = 0.65
+        q = quaternion_from_euler(0.0, -math.pi*0.5, 0.0)
+        readyPose.orientation.x = q[0]
+        readyPose.orientation.y = q[1]
+        readyPose.orientation.z = q[2]
+        readyPose.orientation.w = q[3]
+ 
         currentIds = dxl_ids[side]
         self.current_group = groups[side]
-        q = quaternion_from_euler(0.0, -np.pi*0.5, 0.0)
-        map = np.array([None] * ()(self.divx+1) * (self.divy+1) * (self.divz+1)))
-        map.reshape(self.divx+1, self.divy+1, self.divz+1)
-        pose = Pos()
+
+        while self.goToPose(restPose) == 2:
+            self.recover(side)
+
+        time.sleep(1.0)
+        
+        while(self.goToPose(readyPose) == 2):
+            self.recover(side)
+
+        time.sleep(1.0)
+
+        q = quaternion_from_euler(0.0, -math.pi*0.5, 0.0)
+        map1d = np.array([None] * (self.divx+1) * (self.divy+1) * (self.divz+1))
+        map = map1d.reshape(self.divx+1, self.divy+1, self.divz+1)
+        pose = Pose()
         for k in range(0, self.divz + 1):
-            z = self.minz + self.divz * k
+            z = self.minz + self.stepz * k
             for j in range(0, self.divy + 1):
-                y = self.miny + self.divy * j
+                y = self.miny + self.stepy * j
                 for i in range(0, self.divx + 1):
-                    x = self.minz + self.divx * i
+                    x = self.minx + self.stepx * i
                     pose.position.x = x
                     pose.position.y = y
                     pose.position.z = z
-                    pose.orientation.x = q.x
-                    pose.orientation.y = q.y
-                    pose.orientation.z = q.z
-                    pose.orientation.w = q.w
+                    pose.orientation.x = q[0]
+                    pose.orientation.y = q[1]
+                    pose.orientation.z = q[2]
+                    pose.orientation.w = q[3]
                     rospy.loginfo(f'({i}, {j}, {k}).({x}, {y}, {z}): Attempting plan and trajectory')
                     while(True):
                         result = self.goToPose(pose)
                         if result == 0 or result == 1:
                             break;
-
-                        rospy.loginfo(f'({i}, {j}, {k}).({x}, {y}, {z}): Servo error! Relaxing')
-                        # Set reachy into compliance mode
-                        relaxReq = RelaxRequest()
-                        relaxReq.dxl_ids = currentIds
-                        relax(relaxReq)
-                        # Delay
-                        rospy.loginfo(f'({i}, {j}, {k}).({x}, {y}, {z}): Resting')
-                        time.sleep(10.0)
-                        # Recover from errors
-                        rospy.loginfo(f'({i}, {j}, {k}).({x}, {y}, {z}): Recovering')
-                        recovReq = RecoverRequest()
-                        recovReq.dxl_ids = currentIds
-                        recover(recovReq)
-                        rospy.loginfo(f'({i}, {j}, {k}).({x}, {y}, {z}): Retrying')
+                        self.recover(side)
                         # Try again
 
                     # Wait for latest pose update?
@@ -125,6 +172,20 @@ class Calibrator:
                         map[i, j, k] = None
 
                     time.sleep(1.0)
+
+        time.sleep(1.0)
+        
+        while self.goToPose(readyPose) == 2:
+            self.recover(side)
+
+        time.sleep(1.0)
+        
+        while self.goToPose(restPose) == 2:
+            self.recover(side)
+        
+        relaxReq = RelaxRequest()
+        relaxReq.side = side
+        self.reachyRelax(relaxReq)
         return map
 
     def goToPose(self, pose):
@@ -132,25 +193,41 @@ class Calibrator:
         plan = self.current_group.plan()
         result = 1
         if plan[0]:
-            execThread = Thread(target=self.trajectoryLoop, args=(self.current_group, plan[1])
+            execThread = Thread(target=self.trajectoryLoop, args=(self.current_group, plan[1]))
             self.isExecuting = True
             result = 0
             execThread.start()
             # Loop here testing for overloads
-            error = False
             while(self.isExecuting):
                 self.hertz.sleep()
-                if error:
+                if self.errorIds != None:
                     self.current_group.stop()
                     result = 2
                     self.isExecuting = False
             execThread.join()
+        else:
+            self.hertz.sleep()
 
         return result
 
     def trajectoryLoop(self, group, plan):
         group.execute(plan, wait = True)
         self.isExecuting = False
+
+    def recover(self, side):
+        # Set reachy into compliance mode
+        relaxReq = RelaxRequest()
+        relaxReq.side = side
+        self.reachyRelax(relaxReq)
+        # Delay
+        
+        time.sleep(10.0)
+        
+        # Recover from errors
+        recovReq = RecoverRequest()
+        recovReq.dxl_ids = self.errorIds
+        self.reachyRecover(recovReq)
+        self.errorIds = None
 
 def main():
     moveit_commander.roscpp_initialize(sys.argv)
@@ -163,16 +240,16 @@ def main():
 
     rospy.loginfo('************************************************************')
     rospy.loginfo(f'Calibrating {side} side')
-    map = calibrate.createMap(side)
+    map = calibrator.createMap(side)
     rospy.loginfo(f'Calibration complete for {side} side')
 
     rospy.loginfo('------------------------------------------------------------')
     rospy.loginfo(f'Saving map for {side} side to {mapSavePath}')
     rospy.loginfo('------------------------------------------------------------')
 
-    f = open(mapSavePath, 'wt')
-    np.save(f, map)
-    close(f)
+    f = open(expanduser(mapSavePath), 'wt')
+    map.tofile(f, sep=',', format='%s')
+    f.close()
     rospy.loginfo('************************************************************')
 
 if __name__ == '__main__':

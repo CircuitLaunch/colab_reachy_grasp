@@ -613,6 +613,15 @@ class MoveGroupPythonInterfaceTutorial(object):
         # Return result
         return True
 
+
+######################################################################################
+
+# Modularizing to use in the state machine
+
+
+######################################################################################
+
+
 #we start the node by initializing our move group interface object, and creating a subscriber that listens to the tag detections topic
 def main():
     try:

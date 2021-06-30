@@ -75,6 +75,13 @@ class Ready(smach.State):
                 self.flag = False
                 self.time = rospy.get_time()
 
+            with self._mutex:
+                #works thru transition message from subscriber and switches states
+                if self.request.target_state == "idle":
+                    self.request = None
+                    self.goto_client.cancel_all_goals()
+                    return 'idle'
+
             #TODO: Check if the apriltag (cube) is present
             if self.pose:
                 print(self.pose)

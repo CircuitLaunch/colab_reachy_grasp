@@ -117,7 +117,7 @@ class Calibrator:
         readyPose.orientation.z = q[2]
         readyPose.orientation.w = q[3]
 
-        self.dxlIds = [ i + 20 if side == 'left' else 10) for i in range(8)]
+        self.dxlIds = [ i + (20 if side == 'left' else 10) for i in range(8)]
 
         while self.goToPose(restPose) == 2:
             self.recover(side)
@@ -219,7 +219,10 @@ class Calibrator:
 
         # Recover from errors
         recovReq = RecoverRequest()
-        recovReq.dxl_ids = self.errorIds
+        if self.errorIds != None:
+            recovReq.dxl_ids = self.errorIds
+        else:
+            recovReq.dxl_ids = self.dxlIds
         self.reachyRecover(recovReq)
         self.errorIds = None
 

@@ -13,7 +13,6 @@
      <remap from="image" to="/tag_detections_image" />
   </node>
 
-
   <!-- This node subscribes to the tag detections and publishes with timestamp to tf -->
   <node pkg="colab_reachy_grasp" type="tag_detection_to_tf.py" name="tag_detection_to_tf" />
   <!-- This node publishes a static transform from the apriltag to the pedestal -->

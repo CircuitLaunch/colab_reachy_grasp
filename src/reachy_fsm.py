@@ -21,7 +21,7 @@ class Idle(smach.State):
         self.rate = rospy.Rate(RATE) # 10hz
         self._mutex = Lock()
 
-        rospy.Subscriber('idle_mode', String, self._idle_callback)
+        rospy.Subscriber('state_transition', String, self._idle_callback)
 
 
     def _idle_callback(self, msg):

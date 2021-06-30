@@ -117,7 +117,7 @@ class Calibrator:
         readyPose.orientation.z = q[2]
         readyPose.orientation.w = q[3]
 
-        # currentIds = [ i + 10 if side == 'right' else 20) for i in range(8)]
+        self.dxlIds = [ i + 20 if side == 'left' else 10) for i in range(8)]
 
         while self.goToPose(restPose) == 2:
             self.recover(side)

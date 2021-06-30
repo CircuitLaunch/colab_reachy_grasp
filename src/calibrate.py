@@ -82,15 +82,13 @@ class Calibrator:
         for i in range(0, len(dxlIds)):
             if errorBits[i] != 0:
                 thereWereErrors = True
-                self.errorIds.append(dxlIds[i])
+                errorIds.append(dxlIds[i])
         if thereWereErrors:
             self.errorIds = errorIds
 
     def createMap(self, side):
         robot = moveit_commander.RobotCommander()
-        right_group = moveit_commander.MoveGroupCommander('right_arm')
-        left_group = moveit_commander.MoveGroupCommander('left_arm')
-        groups = {'right': right_group, 'left': left_group }
+        self.current_group = moveit_commander.MoveGroupCommander(f'{ side }_arm')
 
         tagSub = rospy.Subscriber(self.tagTopic, Pose, self.setAprilTagPose)
         telemSub = rospy.Subscriber('dxl_telemetry', Telemetry, self.setTelemetry)
@@ -99,14 +97,9 @@ class Calibrator:
         self.reachyRelax = rospy.ServiceProxy('relax', Relax)
         self.reachyRecover = rospy.ServiceProxy('recover', Recover)
 
-        dxl_ids = {
-            'right': [10, 11, 12, 13, 14, 15, 16, 17],
-            'left': [20, 21, 22, 23, 24, 25, 26, 27]
-        }
-
         restPose = Pose()
         restPose.position.x = 0.0
-        restPose.position.y = 0.2
+        restPose.position.y = 0.2 if side == 'left' else -0.2
         restPose.position.z = 0.354
         q = quaternion_from_euler(0.0, 0.0, 0.0)
         restPose.orientation.x = q[0]
@@ -116,22 +109,21 @@ class Calibrator:
 
         readyPose = Pose()
         readyPose.position.x = 0.1
-        readyPose.position.y = 0.2
+        readyPose.position.y = 0.2 if side == 'left' else -0.2
         readyPose.position.z = 0.65
         q = quaternion_from_euler(0.0, -math.pi*0.5, 0.0)
         readyPose.orientation.x = q[0]
         readyPose.orientation.y = q[1]
         readyPose.orientation.z = q[2]
         readyPose.orientation.w = q[3]
- 
-        currentIds = dxl_ids[side]
-        self.current_group = groups[side]
+
+        # currentIds = [ i + 10 if side == 'right' else 20) for i in range(8)]
 
         while self.goToPose(restPose) == 2:
             self.recover(side)
 
         time.sleep(1.0)
-        
+
         while(self.goToPose(readyPose) == 2):
             self.recover(side)
 
@@ -159,7 +151,9 @@ class Calibrator:
                         result = self.goToPose(pose)
                         if result == 0 or result == 1:
                             break;
+                        rospy.loginfo('Actuator error, recovering')
                         self.recover(side)
+                        rospy.loginfo('Recovered from actuator error, retrying')
                         # Try again
 
                     # Wait for latest pose update?
@@ -174,15 +168,15 @@ class Calibrator:
                     time.sleep(1.0)
 
         time.sleep(1.0)
-        
+
         while self.goToPose(readyPose) == 2:
             self.recover(side)
 
         time.sleep(1.0)
-        
+
         while self.goToPose(restPose) == 2:
             self.recover(side)
-        
+
         relaxReq = RelaxRequest()
         relaxReq.side = side
         self.reachyRelax(relaxReq)
@@ -220,9 +214,9 @@ class Calibrator:
         relaxReq.side = side
         self.reachyRelax(relaxReq)
         # Delay
-        
+
         time.sleep(10.0)
-        
+
         # Recover from errors
         recovReq = RecoverRequest()
         recovReq.dxl_ids = self.errorIds

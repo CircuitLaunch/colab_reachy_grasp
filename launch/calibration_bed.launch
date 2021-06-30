@@ -20,4 +20,9 @@
     <!-- <arg name="camera_device" value="/dev/video2" />
     <arg name="use_rviz" value="false" /> -->
   </include>
+
+  <node name="image_view" pkg="image_view" type="image_view" respawn="false" output="screen">
+<remap from="image" to="/tag_detections_image" />
+</node>
+
 </launch>

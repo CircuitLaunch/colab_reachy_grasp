@@ -450,6 +450,22 @@ class MoveGroupPythonInterfaceTutorial(object):
         dz = pose1.position.z - pose2.position.z
         return math.sqrt(dx*dx + dy*dy + dz*dz)
 
+    def pose_transform(self, frame1, frame2):
+
+        trans = self.tfBuffer.lookup_transform('pedestal', 'cube2',rospy.Time(0))
+        rospy.loginfo("IN POSE TF")
+        rospy.loginfo(trans)
+        return trans
+        # for a in msg.detections:
+        #     if a.id[0] == 5:
+        #         # rospy.loginfo("Found apriltag")
+        #         cube_pose = geometry_msgs.msg.Pose()
+        #         cube_pose.position = trans.transform.translation
+        #         cube_pose.orientation = trans.transform.rotation
+        #         self.on_cube_detected(cube_pose)
+
+
+
     def go_to_pose(self, pose):
 
         self.move_group.set_pose_target(pose)

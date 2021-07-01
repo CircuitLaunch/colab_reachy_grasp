@@ -144,11 +144,12 @@ class Approach(smach.State):
                                              'reachyHome',
                                              'preempted'],
                                  input_keys=['approach_in'],
-                                 output_keys=['approach_out'])
+                                 output_keys=['approach_in'])
         self._mutex = Lock()
         self.rate = rospy.Rate(RATE) # 10hz
         self.flag = True
         self.pose = None
+
         #TODO: the move_interface object should be passed among extend and grasp 
 
     def _cube1_callback(self, msg):
@@ -167,15 +168,28 @@ class Approach(smach.State):
                 
         while True:
             if self.pose:
-                print(self.pose)
+
+                # save the cube pose to the object
+                rospy.loginfo("cube pose")
+                rospy.loginfo(self.pose)
+                # userdata.approach_out = userdata.approach_in
+                userdata.approach_in.cube_pose = self.pose
                 cubeSub.unregister()
                 print("unsubscribed from cube topic")
+                rospy.loginfo("copy")
+                rospy.loginfo(userdata.approach_in.cube_pose)
+                # tranform = userdata.approach_in.pose_transform('pedestal','apriltag_4')
+                # rospy.loginfo(tranform)
 
-                mi = userdata.approach_in.min_grip_error
-                print("here?")
-                rospy.loginfo(mi)
-                # rospy.loginfo(mi.min_grip_error)
 
+                #TODO: create trasnform method in the move_interface.py => this will create the transform between two frames
+
+                #TODO: 
+
+                #TODO:
+
+                #TODO:
+                
             else:
                 # If it doesn't detect in 20 seconds, it'll go back to rest position
 
@@ -314,7 +328,8 @@ def main():
         
 
     # Create a SMACH state machine
-    sm = smach.StateMachine(outcomes=['exit'])
+    sm = smach.StateMachine(outcomes=['exit'],
+    )
 
     #TODO: create an isntance of move interface and pass it among approach, extend and grasp.
     # This is important because this object contains all the attributes of the system and must be shared 
@@ -345,7 +360,7 @@ def main():
                                             'reachyHome':'MOVETOREACHYHOME',
                                             'preempted': 'exit'},
                                 remapping={'approach_in':'move_interface_object',
-                                            'approach_out':'move_interface_object'})
+                                            'approach_in':'move_interface_object'})
                                             
         smach.StateMachine.add('EXTEND', Extend(), 
                                transitions={'target_changed':'APPROACH',

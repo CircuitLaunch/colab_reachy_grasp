@@ -233,11 +233,7 @@ class Calibrator:
             recovReq.dxl_ids = self.errorIds
         else:
             recovReq.dxl_ids = self.dxlIds
-<<<<<<< HEAD
-        self.reachyRecover(recovReq)
-=======
         result = self.reachyRecover(recovReq).result
->>>>>>> master
         self.errorIds = None
         return result
 

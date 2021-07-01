@@ -1,14 +1,26 @@
 <launch>
 
+  <rosparam command="load" file="$(find colab_reachy_grasp)/config/reachy_grasp.yaml" />
   <!-- This launch file sets up the camera as well as the apriltagros. 
        It also  publishes the cubepose and the reachychestpose topics that can be used later -->
   <include file="$(find colab_reachy_grasp)/launch/apriltag_topics.launch"/>
 
+  <include file="$(find colab_reachy_control)/launch/moveit.launch">
+    <!-- <arg name="rviz_config" value="$(find reachy_gazebo_grasp)/rviz/demo_reachy.rviz"/> --> -->
+  </include>
+
+  <node name="image_view" pkg="image_view" type="image_view" respawn="false" output="screen">
+     <remap from="image" to="/tag_detections_image" />
+  </node>
 
   <!-- This node subscribes to the tag detections and publishes with timestamp to tf -->
   <node pkg="colab_reachy_grasp" type="tag_detection_to_tf.py" name="tag_detection_to_tf" />
   <!-- This node publishes a static transform from the apriltag to the pedestal -->
-  <node pkg="tf" type="static_transform_publisher" name="apriltag_reachy_chest" args="-0.05 0 -1 0 0 0 1 apriltag_4 pedestal 100" /> 
+  <node pkg="tf" type="static_transform_publisher" name="apriltag_reachy_chest" args="1 0 -0.05 0 -1.57 0 apriltag_4 pedestal 100" /> 
+
+
+  <!-- <node pkg="tf" type="static_transform_publisher" name="apriltag_reachy_chest" args="-0.05 0 -1 0 0 0 1 apriltag_4 pedestal 100" />  -->
+  <!-- <node pkg="colab_reachy_grasp" type="reachy_fsm.py" name="fsm"/>  -->
 
   <!-- <node pkg="rviz" type="rviz" name="rviz" args="-d $(find colab_reachy_tf)/rviz/default.rviz" if="$(arg use_rviz)"/> -->
 

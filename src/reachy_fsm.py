@@ -40,7 +40,6 @@ class Idle(smach.State):
                     self.data = None
                     return 'reachyHome'
 
-
             if self.preempt_requested():
                 rospy.loginfo("preempt triggered")
                 return 'preempted'
@@ -50,63 +49,63 @@ class Idle(smach.State):
        
 
 
-# define state Ready
-# class Ready(smach.State):
-#     def __init__(self):
-#         smach.State.__init__(self, outcomes=['preempted','relax','target_detected'])
-#         self._mutex = Lock()
-#         self.rate = rospy.Rate(RATE) # 10hz
-#         self.pose = None
-#         self.flag = True
-#         # rospy.Subscriber('state_transition', String, self._state_transition)
-#         self.data = None
+define state Ready
+class Ready(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['preempted','relax','target_detected'])
+        self._mutex = Lock()
+        self.rate = rospy.Rate(RATE) # 10hz
+        self.pose = None
+        self.flag = True
+        # rospy.Subscriber('state_transition', String, self._state_transition)
+        self.data = None
    
-#     def _ready_callback(self, msg):
-#         rospy.loginfo("IN READY CALLBACK")
-#         print(self.pose)
-#         with self._mutex:
-#             self.pose = msg.pose
+    def _ready_callback(self, msg):
+        rospy.loginfo("IN READY CALLBACK")
+        print(self.pose)
+        with self._mutex:
+            self.pose = msg.pose
 
-#     def _state_transition(self,msg):
-#         rospy.loginfo("IN READY CALLBACK, state transition")
-#         with self._mutex:
-#             self.data = msg.data
+    def _state_transition(self,msg):
+        rospy.loginfo("IN READY CALLBACK, state transition")
+        with self._mutex:
+            self.data = msg.data
 
-#     def execute(self, userdata):
-#         rospy.Subscriber('cubePose', PoseStamped, self._ready_callback)
+    def execute(self, userdata):
+        rospy.Subscriber('cubePose', PoseStamped, self._ready_callback)
        
-#         #TODO: If it can't find the apriltag for a specific amount of time, go to rest
-#         rospy.loginfo("Executing READY State")
-#         while True:
-#             if self.flag:
-#                 self.flag = False
-#                 self.time = rospy.get_time()
+        #TODO: If it can't find the apriltag for a specific amount of time, go to rest
+        rospy.loginfo("Executing READY State")
+        while True:
+            if self.flag:
+                self.flag = False
+                self.time = rospy.get_time()
 
-#             with self._mutex:
-#                 #works thru transition message from subscriber and switches states
-#                 if self.data == "idle":
-#                     self.request = None
-#                     # self.goto_client.cancel_all_goals()
-#                     return 'idle'
+            with self._mutex:
+                #works thru transition message from subscriber and switches states
+                if self.data == "idle":
+                    self.request = None
+                    # self.goto_client.cancel_all_goals()
+                    return 'idle'
 
-#             #TODO: Check if the apriltag (cube) is present
-#             if self.pose:
-#                 #TODO: Move the arm to the ready pose and send it to movegroup
-#                 print(self.pose)
-#                 return 'target_detected'
-#             else:
-#                 # If it doesn't detect in 20 seconds, it'll go back to rest position
-#                 print(rospy.get_time())
-#                 print(self.time)
-#                 if rospy.get_time() - self.time > 20:
-#                     self.flag = True
-#                     return 'relax' 
+            #TODO: Check if the apriltag (cube) is present
+            if self.pose:
+                #TODO: Move the arm to the ready pose and send it to movegroup
+                print(self.pose)
+                return 'target_detected'
+            else:
+                # If it doesn't detect in 20 seconds, it'll go back to rest position
+                print(rospy.get_time())
+                print(self.time)
+                if rospy.get_time() - self.time > 20:
+                    self.flag = True
+                    return 'relax' 
 
-#             if self.preempt_requested():
-#                 rospy.loginfo("preempt triggered")
-#                 return 'preempted'
+            if self.preempt_requested():
+                rospy.loginfo("preempt triggered")
+                return 'preempted'
 
-#             self.rate.sleep()
+            self.rate.sleep()
 
 # define state Rest
 class Rest(smach.State):
@@ -228,14 +227,35 @@ class MoveToReachyHome(smach.State):
         smach.State.__init__(self, outcomes=['approach','rest','preempted'])
         self.rate = rospy.Rate(RATE) # 10hz
         self._mutex = Lock()
+        self.flag = True
+        self.pose = None
+
+    def _cube1_callback(self, msg):
+        rospy.loginfo("Found a cube")
+        with self._mutex:
+            self.pose = msg.pose
 
     def execute(self, userdata):
-        rospy.loginfo("Executing GRASP State")
+        rospy.loginfo("Executing MoveToReachyHome State")
+        rospy.Subscriber('cubePose', PoseStamped, self._cube1_callback)
         while True:
-            if 4>3:
-                return 'finished'
-            elif 3<5:
-                return 'ready'
+
+            if self.flag:
+                self.flag = False
+                self.time = rospy.get_time()
+
+            #TODO: Check if the apriltag (cube) is present
+            if self.pose:
+                #TODO: Move the arm to the ready pose and send it to movegroup
+                print(self.pose)
+                return 'target_detected'
+            else:
+                # If it doesn't detect in 20 seconds, it'll go back to rest position
+                # print(rospy.get_time())
+                # print(self.time)
+                if rospy.get_time() - self.time > 20:
+                    self.flag = True
+                    return 'rest' 
 
             if self.preempt_requested():
                     rospy.loginfo("preempt triggered")

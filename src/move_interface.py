@@ -2,6 +2,7 @@
 import math
 from os import RTLD_GLOBAL
 import time
+from rospy.rostime import get_rostime_cond
 import tf2_ros
 import sys
 import copy
@@ -195,6 +196,8 @@ class MoveGroupPythonInterfaceTutorial(object):
         self._abort = False
         self._abort_mutex = Lock()
 
+        self._cube_pose = geometry_msgs.msg.Pose()
+        self._cube_pose_mutex = Lock()
         self._approach_pose = geometry_msgs.msg.Pose()
         self._approach_pose_mutex = Lock()
         self._grasp_pose = geometry_msgs.msg.Pose()
@@ -362,6 +365,18 @@ class MoveGroupPythonInterfaceTutorial(object):
     def grasp_pose(self, val):
         with self._grasp_pose_mutex:
             self._grasp_pose = val
+
+    @property
+    def cube_pose(self):
+        local_pose = None
+        with self._cube_pose_mutex:
+            local_pose = self._cube_pose
+        return local_pose
+
+    @cube_pose.setter
+    def cube_pose(self, val):
+        with self._cube_pose_mutex:
+            self._cube_pose = val
 
     @property
     def current_pose(self):

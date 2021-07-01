@@ -151,9 +151,19 @@ class Calibrator:
                         result = self.goToPose(pose)
                         if result == 0 or result == 1:
                             break;
-                        rospy.loginfo('Actuator error, recovering')
-                        self.recover(side)
-                        rospy.loginfo('Recovered from actuator error, retrying')
+                        if result == 2:
+                            recovering = True
+                            while(recovering):
+                                rospy.loginfo('Actuator error, recovering')
+                                if self.recover(side) == 'success':
+                                    rospy.loginfo('Recovered from actuator error, retrying')
+                                    recovering = False
+                                else:
+                                    if self.errorIds == None or len(self.errorIds) = 0:
+                                        recovering = False
+                                    else:
+                                        rospy.loginfo('Failed to recover from actuator error, waiting 10 seconds, then trying to recover again')
+                                        time.sleep(10.0)
                         # Try again
 
                     # Wait for latest pose update?
@@ -223,8 +233,13 @@ class Calibrator:
             recovReq.dxl_ids = self.errorIds
         else:
             recovReq.dxl_ids = self.dxlIds
+<<<<<<< HEAD
         self.reachyRecover(recovReq)
+=======
+        result = self.reachyRecover(recovReq).result
+>>>>>>> master
         self.errorIds = None
+        return result
 
 def main():
     moveit_commander.roscpp_initialize(sys.argv)

@@ -63,7 +63,7 @@ class MoveGroupPythonInterfaceTutorial(object):
 
 
         # UNCOMMENT THIS PART IF YOU WANT TO RUN THE MOVE_INTERFACE BY ITSELF
-        # rospy.init_node('move_group_python_interface_tutorial', anonymous=True)
+        rospy.init_node('move_group_python_interface_tutorial', anonymous=True)
 
 
 
@@ -137,8 +137,8 @@ class MoveGroupPythonInterfaceTutorial(object):
         self.spin_rate = rospy.Rate(30)
 
         self.grasping_state_init()
-        # self.grasping_thread = Thread(target=self.grasping_state_loop)
-        # self.grasping_thread.start()
+        self.grasping_thread = Thread(target=self.grasping_state_loop)
+        self.grasping_thread.start()
 
         # local_approach_pose = self.current_pose()
 

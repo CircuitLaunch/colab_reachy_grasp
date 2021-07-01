@@ -58,12 +58,19 @@ class Ready(smach.State):
         self.rate = rospy.Rate(RATE) # 10hz
         self.pose = None
         self.flag = True
-
+        # rospy.Subscriber('state_transition', String, self._state_transition)
+        self.data = None
+   
     def _ready_callback(self, msg):
         rospy.loginfo("IN READY CALLBACK")
         print(self.pose)
         with self._mutex:
             self.pose = msg.pose
+
+    def _state_transition(self,msg):
+        rospy.loginfo("IN READY CALLBACK, state transition")
+        with self._mutex:
+            self.data = msg.data
 
     def execute(self, userdata):
         rospy.Subscriber('cubePose', PoseStamped, self._ready_callback)
@@ -77,9 +84,9 @@ class Ready(smach.State):
 
             with self._mutex:
                 #works thru transition message from subscriber and switches states
-                if self.request.target_state == "idle":
+                if self.data == "idle":
                     self.request = None
-                    self.goto_client.cancel_all_goals()
+                    # self.goto_client.cancel_all_goals()
                     return 'idle'
 
             #TODO: Check if the apriltag (cube) is present
@@ -106,6 +113,12 @@ class Rest(smach.State):
         smach.State.__init__(self, outcomes=['preempted','ready'])
         self._mutex = Lock()
         self.rate = rospy.Rate(RATE) # 10hz
+        rospy.Subscriber('state_transition', String, self._state_transition)
+
+    def _state_transition(self,msg):
+        rospy.loginfo("IN REST CALLBACK, state transition")
+        with self._mutex:
+            self.data = msg.data
 
     def execute(self, userdata):
         rospy.loginfo("Executing REST State")
@@ -206,14 +219,14 @@ def main():
     # Open the container
     with sm:
         # Add states to the container
-
+        smach.StateMachine.add('IDLE', Idle(), 
+                               transitions={'ready':'READY', 
+                                            'preempted': 'exit'})
         smach.StateMachine.add('READY', Ready(), 
                                transitions={'relax':'REST', 
                                             'target_detected':'APPROACH',
                                             'preempted': 'exit'})
-        smach.StateMachine.add('IDLE', Idle(), 
-                               transitions={'ready':'READY', 
-                                            'preempted': 'exit'})
+
         smach.StateMachine.add('APPROACH', Approach(), 
                                transitions={'target_changed':'APPROACH',
                                             'target_locked':'EXTEND',

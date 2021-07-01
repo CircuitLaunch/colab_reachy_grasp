@@ -117,7 +117,7 @@ class Calibrator:
         readyPose.orientation.z = q[2]
         readyPose.orientation.w = q[3]
 
-        # currentIds = [ i + 10 if side == 'right' else 20) for i in range(8)]
+        self.dxlIds = [ i + (20 if side == 'left' else 10) for i in range(8)]
 
         while self.goToPose(restPose) == 2:
             self.recover(side)
@@ -151,9 +151,19 @@ class Calibrator:
                         result = self.goToPose(pose)
                         if result == 0 or result == 1:
                             break;
-                        rospy.loginfo('Actuator error, recovering')
-                        self.recover(side)
-                        rospy.loginfo('Recovered from actuator error, retrying')
+                        if result == 2:
+                            recovering = True
+                            while(recovering):
+                                rospy.loginfo('Actuator error, recovering')
+                                if self.recover(side) == 'success':
+                                    rospy.loginfo('Recovered from actuator error, retrying')
+                                    recovering = False
+                                else:
+                                    if self.errorIds == None or len(self.errorIds) = 0:
+                                        recovering = False
+                                    else:
+                                        rospy.loginfo('Failed to recover from actuator error, waiting 10 seconds, then trying to recover again')
+                                        time.sleep(10.0)
                         # Try again
 
                     # Wait for latest pose update?
@@ -219,9 +229,13 @@ class Calibrator:
 
         # Recover from errors
         recovReq = RecoverRequest()
-        recovReq.dxl_ids = self.errorIds
-        self.reachyRecover(recovReq)
+        if self.errorIds != None:
+            recovReq.dxl_ids = self.errorIds
+        else:
+            recovReq.dxl_ids = self.dxlIds
+        result = self.reachyRecover(recovReq).result
         self.errorIds = None
+        return result
 
 def main():
     moveit_commander.roscpp_initialize(sys.argv)

@@ -328,12 +328,11 @@ def main():
         
 
     # Create a SMACH state machine
-    sm = smach.StateMachine(outcomes=['exit'],
-    )
+    sm = smach.StateMachine(outcomes=['exit'])
 
     #TODO: create an isntance of move interface and pass it among approach, extend and grasp.
     # This is important because this object contains all the attributes of the system and must be shared 
-    sm.userdata.move_interface_object = move_interface.MoveGroupPythonInterfaceTutorial()
+    move_interface_object = move_interface.MoveGroupPythonInterfaceTutorial()
     # ERROR ABOUT THE ROBOT DESCRIPTION (NEED TO BE CONNECTED TO THE PHYSICAL ROBOT? TEST IT OUT ON THE REAL ROBOT)
 
     # Open the container
@@ -358,22 +357,22 @@ def main():
                                transitions={'target_changed':'APPROACH',
                                             'target_locked':'EXTEND',
                                             'reachyHome':'MOVETOREACHYHOME',
-                                            'preempted': 'exit'},
-                                remapping={'approach_in':'move_interface_object',
-                                            'approach_in':'move_interface_object'})
+                                            'preempted': 'exit'})
+                                # remapping={'approach_in':'move_interface_object',
+                                #             'approach_in':'move_interface_object'})
                                             
         smach.StateMachine.add('EXTEND', Extend(), 
                                transitions={'target_changed':'APPROACH',
                                             'target_locked':'GRASP',
                                             'reachyHome':'MOVETOREACHYHOME',
-                                            'preempted': 'exit'},
-                                remapping={'extend_in':'move_interface_object',
-                                            'extend_out':'move_interface_object'})
+                                            'preempted': 'exit'})
+                                # remapping={'extend_in':'move_interface_object',
+                                #             'extend_out':'move_interface_object'})
         smach.StateMachine.add('GRASP', Grasp(), 
                                transitions={'apriltagHome' : 'MOVETOAPRILTAGHOME',
-                                            'preempted': 'exit'},
-                                remapping={'grasp_in':'move_interface_object',
-                                            'grasp_out':'move_interface_object'})
+                                            'preempted': 'exit'})
+                                # remapping={'grasp_in':'move_interface_object',
+                                #             'grasp_out':'move_interface_object'})
         smach.StateMachine.add('REST', Rest(), 
                                transitions={'idle':'IDLE', 
                                             'preempted': 'exit'})

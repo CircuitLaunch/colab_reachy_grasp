@@ -15,7 +15,8 @@ RATE = 1
 # define state Idle. 
 class Idle(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['reachyHome','preempted'])
+        smach.State.__init__(self, outcomes=['reachyHome',
+                                             'preempted'])
 
         self.data = None
         self.rate = rospy.Rate(RATE) # 10hz
@@ -109,9 +110,11 @@ class Idle(smach.State):
 
 # define state Rest
 class Rest(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['preempted','idle'])
+    def __init__(self,mo):
+        smach.State.__init__(self, outcomes=['preempted',
+                                             'idle'])
         self._mutex = Lock()
+        self.mo = mo
         self.rate = rospy.Rate(RATE) # 10hz
         rospy.Subscriber('state_transition', String, self._state_transition)
 
@@ -138,14 +141,13 @@ class Rest(smach.State):
 
 # define state Approach
 class Approach(smach.State):
-    def __init__(self):
+    def __init__(self, mo):
         smach.State.__init__(self, outcomes=['target_changed',
                                              'target_locked',
                                              'reachyHome',
-                                             'preempted'],
-                                 input_keys=['approach_in'],
-                                 output_keys=['approach_in'])
+                                             'preempted'])
         self._mutex = Lock()
+        self.mo = mo
         self.rate = rospy.Rate(RATE) # 10hz
         self.flag = True
         self.pose = None
@@ -205,10 +207,14 @@ class Approach(smach.State):
 
 # define state Extend. 
 class Extend(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['target_changed','target_locked','preempted','reachyHome'])
+    def __init__(self, mo):
+        smach.State.__init__(self, outcomes=['target_changed',
+                                             'target_locked',
+                                             'preempted',
+                                             'reachyHome'])
         self.rate = rospy.Rate(RATE) # 10hz
         self._mutex = Lock()
+        self.mo = mo
 
     def execute(self, userdata):
         rospy.loginfo("Executing EXTEND State")
@@ -228,10 +234,12 @@ class Extend(smach.State):
 
 # define state Grasp. This is actually moving the gripper to hold the cube
 class Grasp(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['apriltagHome','preempted'])
+    def __init__(self, mo):
+        smach.State.__init__(self, outcomes=['apriltagHome',
+                                             'preempted'])
         self.rate = rospy.Rate(RATE) # 10hz
         self._mutex = Lock()
+        self.mo = mo
 
     def execute(self, userdata):
         rospy.loginfo("Executing GRASP State")
@@ -249,10 +257,12 @@ class Grasp(smach.State):
 
 # define state Grasp. This is actually moving the gripper to hold the cube
 class MoveToAprilTagHome(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['release','preempted'])
+    def __init__(self, mo):
+        smach.State.__init__(self, outcomes=['release',
+                                             'preempted'])
         self.rate = rospy.Rate(RATE) # 10hz
         self._mutex = Lock()
+        self.mo = mo
 
     def execute(self, userdata):
         rospy.loginfo("Executing GRASP State")
@@ -270,12 +280,15 @@ class MoveToAprilTagHome(smach.State):
 
 # define state Grasp. This is actually moving the gripper to hold the cube
 class MoveToReachyHome(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['approach','rest','preempted'])
+    def __init__(self, mo):
+        smach.State.__init__(self, outcomes=['approach',
+                                             'rest',
+                                             'preempted'])
         self.rate = rospy.Rate(RATE) # 10hz
         self._mutex = Lock()
         self.flag = True
         self.pose = None
+        self.mo = mo
 
     def execute(self, userdata):
         rospy.loginfo("Executing MoveToReachyHome State")
@@ -298,10 +311,12 @@ class MoveToReachyHome(smach.State):
 
 # define state Grasp. This is actually moving the gripper to hold the cube
 class Release(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['reachyHome','preempted'])
+    def __init__(self,mo):
+        smach.State.__init__(self, outcomes=['reachyHome',
+                                             'preempted'])
         self.rate = rospy.Rate(RATE) # 10hz
         self._mutex = Lock()
+        self.mo = mo
 
     def execute(self, userdata):
         rospy.loginfo("Executing GRASP State")
@@ -353,7 +368,7 @@ def main():
                                             'rest':'REST',
                                             'preempted': 'exit'})
 
-        smach.StateMachine.add('APPROACH', Approach(), 
+        smach.StateMachine.add('APPROACH', Approach(move_interface_object), 
                                transitions={'target_changed':'APPROACH',
                                             'target_locked':'EXTEND',
                                             'reachyHome':'MOVETOREACHYHOME',
@@ -361,27 +376,27 @@ def main():
                                 # remapping={'approach_in':'move_interface_object',
                                 #             'approach_in':'move_interface_object'})
                                             
-        smach.StateMachine.add('EXTEND', Extend(), 
+        smach.StateMachine.add('EXTEND', Extend(move_interface_object), 
                                transitions={'target_changed':'APPROACH',
                                             'target_locked':'GRASP',
                                             'reachyHome':'MOVETOREACHYHOME',
                                             'preempted': 'exit'})
                                 # remapping={'extend_in':'move_interface_object',
                                 #             'extend_out':'move_interface_object'})
-        smach.StateMachine.add('GRASP', Grasp(), 
+        smach.StateMachine.add('GRASP', Grasp(move_interface_object), 
                                transitions={'apriltagHome' : 'MOVETOAPRILTAGHOME',
                                             'preempted': 'exit'})
                                 # remapping={'grasp_in':'move_interface_object',
                                 #             'grasp_out':'move_interface_object'})
-        smach.StateMachine.add('REST', Rest(), 
+        smach.StateMachine.add('REST', Rest(move_interface_object), 
                                transitions={'idle':'IDLE', 
                                             'preempted': 'exit'})
         # will need to map the home to home pos
-        smach.StateMachine.add('MOVETOAPRILTAGHOME', MoveToAprilTagHome(), 
+        smach.StateMachine.add('MOVETOAPRILTAGHOME', MoveToAprilTagHome(move_interface_object), 
                                transitions={'release':'RELEASE', 
                                             'preempted': 'exit'})
 
-        smach.StateMachine.add('RELEASE', Release(), 
+        smach.StateMachine.add('RELEASE', Release(move_interface_object), 
                                 transitions={'reachyHome':'MOVETOREACHYHOME', 
                                             'preempted': 'exit'})
                                             

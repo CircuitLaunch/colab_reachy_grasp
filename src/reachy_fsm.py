@@ -159,7 +159,6 @@ class Approach(smach.State):
         with self._mutex:
             self.pose = msg.pose
 
-
     def execute(self, userdata):
         rospy.loginfo("Executing APPROACH State")
         cubeSub = rospy.Subscriber('cubePose', PoseStamped, self._cube1_callback)
@@ -169,19 +168,23 @@ class Approach(smach.State):
             self.time = rospy.get_time()
                 
         while True:
+            #TODO: get a pose from the callback and then update the metadata. Then unsubscribe to the topic so that it won't be triggered
             if self.pose:
-
+                trans = self.tfBuffer.lookup_transform('pedestal', 'apriltag_5',rospy.Time(0))  #apriltag5 is on the cube
+                rospy.loginfo(trans)
                 # save the cube pose to the object
                 rospy.loginfo("cube pose")
-                rospy.loginfo(self.pose)
+                # rospy.loginfo( self.mo.cube_pose)
                 # userdata.approach_out = userdata.approach_in
-                userdata.approach_in.cube_pose = self.pose
+                # self.mo.cube_pose = self.pose
                 cubeSub.unregister()
                 print("unsubscribed from cube topic")
                 rospy.loginfo("copy")
-                rospy.loginfo(userdata.approach_in.cube_pose)
+                # rospy.loginfo( self.mo.cube_pose)
                 # tranform = userdata.approach_in.pose_transform('pedestal','apriltag_4')
                 # rospy.loginfo(tranform)
+
+
 
 
                 #TODO: create trasnform method in the move_interface.py => this will create the transform between two frames

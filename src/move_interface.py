@@ -169,8 +169,6 @@ class MoveGroupPythonInterfaceTutorial(object):
                     cube_pose.orientation = trans.transform.rotation
                     self.on_cube_detected(cube_pose)
 
-
-
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
             rate.sleep()
 
@@ -666,7 +664,162 @@ class MoveGroupPythonInterfaceTutorial(object):
 ######################################################################################
 
 # Modularizing to use in the state machine
+    def approach(self):
 
+        self.spin_rate.sleep()
+        rospy.loginfo("before abort in grasping")
+        if self.abort:
+            return False
+        rospy.loginfo("between abort and shutdown")
+        if rospy.is_shutdown():
+            return False
+        # Do move to approach pose and move to grasp pose
+        while(True):
+            rospy.loginfo("in grasping")
+            self.spin_rate.sleep()
+            if self.abort or rospy.is_shutdown():
+                return False
+            approach_pose_attained = False
+            grasp_pose_attained = False
+            # Do move to approach pose
+            # rospy.loginfo("this is the self arpproach pose")
+            # rospy.loginfo(self.approach_pose)
+            # local_approach_pose = copy.deepcopy(self.approach_pose)
+
+            local_approach_pose = geometry_msgs.msg.Pose()
+
+            # TODO: Calculate the grasp pose given the cube pose
+            
+            # ADDED BY LIAM
+            local_approach_pose.position.x = self.approach_pose.position.x 
+            local_approach_pose.position.y = self.approach_pose.position.y 
+            local_approach_pose.position.z = self.approach_pose.position.z
+
+            local_approach_pose.orientation.x = self.approach_pose.orientation.x       
+            local_approach_pose.orientation.y = self.approach_pose.orientation.y   
+            local_approach_pose.orientation.z = self.approach_pose.orientation.z   
+            local_approach_pose.orientation.w = self.approach_pose.orientation.w   
+
+
+
+
+            rospy.loginfo("THIS IS THE local_approach_pose: " )
+            # rospy.loginfo(local_approach_pose)
+            while(True):
+                self.spin_rate.sleep()
+                if self.abort or rospy.is_shutdown():
+                    return False
+                ''' # THESE ARE DETERMINED ASYNCHRONOUSLY EVERYTIME THE TAG IS DETECTED
+                    # Determine grasp pose
+                    # Determine current pose
+                '''
+                # If no trajectory being executed
+                if not self.trajectory_in_progress:
+                    # trigger trajectory
+                    if not self.go_to_pose(local_approach_pose):
+                        local_approach_pose = copy.deepcopy(self.approach_pose)
+                    #     rospy.loginfo("inside if")
+                    #     rospy.loginfo(local_approach_pose)
+                
+                    # rospy.loginfo("outside if")
+                    # rospy.loginfo(local_approach_pose)
+                
+                # Else
+                else:
+                    # If approach pose has changed
+                    if self.distance(self.approach_pose, local_approach_pose) > self.min_approach_error:
+                        rospy.loginfo("cube moving")
+                        # abort current trajectory
+                        self.abort_trajectory()
+                        # trigger new trajectory
+                        local_approach_pose = copy.deepcopy(self.approach_pose)
+                        self.go_to_pose(local_approach_pose)
+                # Repeat move to approach pose while distance between current pose and approach pose > threshold and not abort
+                rospy.loginfo("DISTANCE: ")
+                rospy.loginfo(self.distance(self.current_pose, local_approach_pose))
+                if self.distance(self.current_pose, local_approach_pose) <= self.min_approach_error:
+                    approach_pose_attained = True
+                    self.trajectory_in_progress = False
+                    break
+
+            rospy.loginfo("Completed approach")
+
+    def extend(self):
+    # Do move to grasp pose
+        local_grasp_pose = copy.deepcopy(self.grasp_pose)
+        
+        rospy.loginfo("STARTING GO TO GOAL")
+        while(True):
+            self.spin_rate.sleep()
+            if self.abort or rospy.is_shutdown():
+                return False
+            ''' # THESE ARE DETERMINED ASYNCHRONOUSLY EVERYTIME THE TAG IS DETECTED
+                # Determine grasp pose
+                # Determine current pose
+            '''
+            # If no trajectory being executed
+            if not self.trajectory_in_progress:
+                # trigger trajectory
+                # self.go_to_pose(local_grasp_pose)
+
+                if not self.go_to_pose(local_grasp_pose):
+                    local_grasp_pose = copy.deepcopy(self.grasp_pose)
+                    rospy.loginfo("created the local_grasp_pose")
+                    # rospy.loginfo("inside if")
+                    # rospy.loginfo(local_grasp_pose)
+            
+                # rospy.loginfo("outside if")
+                # rospy.loginfo(local_grasp_pose)
+            # Else
+            else:
+                # If grasp pose has changed
+                rospy.loginfo("grasp pose and local grasp pose distance")
+                rospy.loginfo(self.distance(self.grasp_pose, local_grasp_pose))
+                if self.distance(self.grasp_pose, local_grasp_pose) > self.min_grip_error:
+                    # abort current trajectory
+                    self.abort_trajectory()
+                    break
+            # Repeat move to grasp pose while distance between current pose and grasp pose > threshold and not abort
+            if self.distance(self.grasp_pose, local_grasp_pose) <= self.min_grip_error:
+                grasp_pose_attained = True
+                break
+        # Repeat move to approach pose and move to grasp pose while distance between current pose and grasp pose > threshold and not abort
+        if grasp_pose_attained:
+            break    
+
+    def grasp(self):
+        local_grasp_pose = copy.deepcopy(self.grasp_pose)
+
+            rospy.loginfo("Completed to goal")
+            # Do grasp
+            local_grasp_flag = False
+            self.trajectory_in_progress = False
+            while(True):
+                self.spin_rate.sleep()
+                if self.abort or rospy.is_shutdown():
+                    return False
+                # Close grip
+                self.tighten_grip()
+                ''' # THESE ARE DETERMINED ASYNCHRONOUSLY EVERYTIME THE TAG IS DETECTED
+                    # Determine grasp pose
+                    # Determine current pose
+                '''
+                # set grasped false
+                local_grasp_flag = False
+                # If grasp pose has changed
+                rospy.loginfo("checking the distance for the grasp")
+                rospy.loginfo(self.distance(self.grasp_pose, local_grasp_pose))
+                if self.distance(self.grasp_pose, local_grasp_pose) > self.min_grip_error:
+                    break
+                # set grasped true
+                local_grasp_flag = True
+                # Repeat while grip load < threshold
+                rospy.loginfo("GRASPING")
+                if self.grip_load > self.min_grip_load():
+                    break
+            # Repeat grasp while not (grasped or abort)
+            if local_grasp_flag:
+                break
 
 ######################################################################################
 

@@ -169,6 +169,8 @@ class Approach(smach.State):
                 
         while True:
             #TODO: get a pose from the callback and then update the metadata. Then unsubscribe to the topic so that it won't be triggered
+            rospy.loginfo("outside loop")
+            # Check if cube is detected from the camera
             if self.pose:
                 #apriltag5 is on the cube
                 # self.mo.find_cube_pose()
@@ -176,15 +178,10 @@ class Approach(smach.State):
                 if self.a:
                     rospy.loginfo(self.mo.update_cube_pose())
                     self.a = False
-                rospy.loginfo(self.mo.approach_pose)
-                # save the cube pose to the object
-                rospy.loginfo("cube pose")
-                # rospy.loginfo( self.mo.cube_pose)
-                # userdata.approach_out = userdata.approach_in
-                # self.mo.cube_pose = self.pose
-                cubeSub.unregister()
-                print("unsubscribed from cube topic")
+                    cubeSub.unregister()
+                    print("unsubscribed from cube topic")
                 rospy.loginfo("copy")
+                rospy.loginfo(self.mo.approach_pose)
                 # rospy.loginfo( self.mo.cube_pose)
                 # tranform = userdata.approach_in.pose_transform('pedestal','apriltag_4')
                 # rospy.loginfo(tranform)

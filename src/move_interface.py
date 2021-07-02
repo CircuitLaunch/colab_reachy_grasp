@@ -175,7 +175,13 @@ class MoveGroupPythonInterfaceTutorial(object):
             rate.sleep()
 
 
-       
+    def update_cube_pose(self):
+        trans = self.tfBuffer.lookup_transform('pedestal', 'apriltag_5',rospy.Time(0))
+        cube_pose = geometry_msgs.msg.Pose()
+        cube_pose.position = trans.transform.translation
+        cube_pose.orientation = trans.transform.rotation
+        self.on_cube_detected(cube_pose)        
+
 
     def grasping_state_init(self):
         self._min_approach_error = rospy.get_param("MIN_APPROACH_ERROR") # TODO: determine a suitable minimum approach pose error

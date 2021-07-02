@@ -151,7 +151,7 @@ class Approach(smach.State):
         self.rate = rospy.Rate(RATE) # 10hz
         self.flag = True
         self.pose = None
-
+        self.a = True
         #TODO: the move_interface object should be passed among extend and grasp 
 
     def _cube1_callback(self, msg):
@@ -170,8 +170,13 @@ class Approach(smach.State):
         while True:
             #TODO: get a pose from the callback and then update the metadata. Then unsubscribe to the topic so that it won't be triggered
             if self.pose:
-                trans = self.tfBuffer.lookup_transform('pedestal', 'apriltag_5',rospy.Time(0))  #apriltag5 is on the cube
-                rospy.loginfo(trans)
+                #apriltag5 is on the cube
+                # self.mo.find_cube_pose()
+
+                if self.a:
+                    rospy.loginfo(self.mo.update_cube_pose())
+                    self.a = False
+                rospy.loginfo(self.mo.approach_pose)
                 # save the cube pose to the object
                 rospy.loginfo("cube pose")
                 # rospy.loginfo( self.mo.cube_pose)
@@ -366,7 +371,7 @@ def main():
         
         # check if there's no more apriltags to be moved. have some sort of flag that checks if the apriltag has been moved to home.
         # if everything has been moved then end the run
-        smach.StateMachine.add('MOVETOREACHYHOME', MoveToReachyHome(), 
+        smach.StateMachine.add('MOVETOREACHYHOME', MoveToReachyHome(move_interface_object), 
                                transitions={'approach':'APPROACH',
                                             'rest':'REST',
                                             'preempted': 'exit'})

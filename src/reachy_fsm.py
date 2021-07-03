@@ -156,6 +156,7 @@ class Approach(smach.State):
 
     def _cube1_callback(self, msg):
         rospy.loginfo("Found a cube")
+        #TODO: keep updating the pose of the cube
         with self._mutex:
             self.pose = msg.pose
 
@@ -166,8 +167,16 @@ class Approach(smach.State):
         if self.flag:       
             self.flag = False
             self.time = rospy.get_time()
-                
+
+        #TODO: 1. Find if there's a cube in sight
+        #      2. If the cube position changes by a lot, then run this state again -> will need to keep track of the previous cube pose    
         while True:
+            #TODO: keep checking if the cube callback has been changed by a threshold. BUT
+            # This MUST be done once the plan has started
+
+
+
+
             #TODO: get a pose from the callback and then update the metadata. Then unsubscribe to the topic so that it won't be triggered
             rospy.loginfo("outside loop")
             # Check if cube is detected from the camera
@@ -187,15 +196,20 @@ class Approach(smach.State):
                 # rospy.loginfo(tranform)
 
 
+            #TODO: check if the tfj is in progress. If yes, then keep monitoring if the dist is close
+            # if the trj is NOT in progress, check if the
 
+                #TODO: check if the trj is in progress. 
 
-                #TODO: create trasnform method in the move_interface.py => this will create the transform between two frames
+                #TODO: check if the cube pose has changed by a lot. If so, run the approach state again
 
-                #TODO: 
-
-                #TODO:
-
-                #TODO:
+                #TODO: check if the current pose (from Moveit) is within certain threshold compared to the goal pose
+                if self.mo.distance(self.mo.current_pose, local_approach_pose) <= self.mo.min_approach_error:
+                    approach_pose_attained = True
+                    self.trajectory_in_progress = False
+                    return 'target_locked' # move to extend state
+                
+                #TODO:I need the local approach pose to keep track
                 
             else:
                 # If it doesn't detect in 20 seconds, it'll go back to rest position

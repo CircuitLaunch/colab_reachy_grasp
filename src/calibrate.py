@@ -129,7 +129,6 @@ class Calibrator:
 
         time.sleep(1.0)
 
-        q = quaternion_from_euler(0.0, -math.pi*0.5, 0.0)
         map1d = np.array([None] * (self.divx+1) * (self.divy+1) * (self.divz+1))
         map = map1d.reshape(self.divx+1, self.divy+1, self.divz+1)
         pose = Pose()
@@ -137,6 +136,16 @@ class Calibrator:
             z = self.minz + self.stepz * k
             for j in range(0, self.divy + 1):
                 y = self.miny + self.stepy * j
+                if math.abs(y) < 0.15:
+                    if side == 'left':
+                        q = quaternion_from_euler(0.0, -math.pi*0.5, -math.pi*0.25)
+                    if side == 'right':
+                        q = quaternion_from_euler(0.0, -math.pi*0.5, math.pi*0.25)
+                else:
+                    if side == 'left':
+                        q = quaternion_from_euler(0.0, -math.pi*0.5, -math.pi*0.125)
+                    if side == 'right':
+                        q = quaternion_from_euler(0.0, -math.pi*0.5, math.pi*0.125)
                 for i in range(0, self.divx + 1):
                     x = self.minx + self.stepx * i
                     pose.position.x = x
@@ -262,3 +271,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+ 

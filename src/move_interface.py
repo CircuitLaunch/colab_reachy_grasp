@@ -169,30 +169,30 @@ class MoveGroupPythonInterfaceTutorial(object):
     #   go_to_pose_goal(self, msg)
 
     # This method is being called everytime it detects an apriltag
-    def go_to_pose_goal(self, msg):
+    # def go_to_pose_goal(self, msg):
 
-        #initialize cube position and looping rate
-        rate = rospy.Rate(5.0)
-        # rate2 = rospy.Rate(1)
-        # cube_x = 0
-        # cube_y = 0
-        # cube_z = 0
+    #     #initialize cube position and looping rate
+    #     rate = rospy.Rate(5.0)
+    #     # rate2 = rospy.Rate(1)
+    #     # cube_x = 0
+    #     # cube_y = 0
+    #     # cube_z = 0
 
 
-        # rate2.sleep()
-        #attempts to get the latest transform of the cube from world
-        try:
-            trans = self.tfBuffer.lookup_transform('pedestal', 'cube2',rospy.Time(0))
-            for a in msg.detections:
-                if a.id[0] == 5:
-                    # rospy.loginfo("Found apriltag")
-                    cube_pose = geometry_msgs.msg.Pose()
-                    cube_pose.position = trans.transform.translation
-                    cube_pose.orientation = trans.transform.rotation
-                    self.on_cube_detected(cube_pose)
+    #     # rate2.sleep()
+    #     #attempts to get the latest transform of the cube from world
+    #     try:
+    #         trans = self.tfBuffer.lookup_transform('pedestal', 'cube2',rospy.Time(0))
+    #         for a in msg.detections:
+    #             if a.id[0] == 5:
+    #                 # rospy.loginfo("Found apriltag")
+    #                 cube_pose = geometry_msgs.msg.Pose()
+    #                 cube_pose.position = trans.transform.translation
+    #                 cube_pose.orientation = trans.transform.rotation
+    #                 self.on_cube_detected(cube_pose)
 
-        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-            rate.sleep()
+    #     except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+    #         rate.sleep()
 
     def _read_apriltag(self):
         '''

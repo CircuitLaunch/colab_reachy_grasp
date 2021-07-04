@@ -1,5 +1,5 @@
 {
-    "apriltag_0": {
+    "apriltag_5": {
         "position":{
             "x" : 0,
             "y" : 0,
@@ -13,7 +13,7 @@
         }
     },
 
-    "apriltag_1": {
+    "apriltag_0": {
         "position":{
             "x" : 0,
             "y" : 0,

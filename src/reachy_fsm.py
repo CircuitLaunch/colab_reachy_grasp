@@ -4,14 +4,19 @@ import rospy
 from rospy.core import rospyinfo
 from rospy.impl.transport import Transport
 import smach
+from tf.transformations import *
+import math
 from threading import Lock, Thread
 from apriltag_ros.msg import AprilTagDetectionArray
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, Pose
 from std_msgs.msg import String
+from colab_reachy_control.srv import Recover, RecoverRequest, Relax, RelaxRequest, Zero, ZeroRequest
 import time
+import copy
 import move_interface
+import geometry_msgs.msg
 
-RATE = 1
+RATE = 10
 # define state Idle. 
 class Idle(smach.State):
     def __init__(self):
@@ -48,192 +53,118 @@ class Idle(smach.State):
             self.rate.sleep()
 
        
-
-
-# define state Ready
-# class Ready(smach.State):
-#     def __init__(self):
-#         smach.State.__init__(self, outcomes=['preempted','relax','target_detected'])
-#         self._mutex = Lock()
-#         self.rate = rospy.Rate(RATE) # 10hz
-#         self.pose = None
-#         self.flag = True
-#         # rospy.Subscriber('state_transition', String, self._state_transition)
-#         self.data = None
-   
-#     def _ready_callback(self, msg):
-#         rospy.loginfo("IN READY CALLBACK")
-#         print(self.pose)
-#         with self._mutex:
-#             self.pose = msg.pose
-
-#     def _state_transition(self,msg):
-#         rospy.loginfo("IN READY CALLBACK, state transition")
-#         with self._mutex:
-#             self.data = msg.data
-
-#     def execute(self, userdata):
-#         rospy.Subscriber('cubePose', PoseStamped, self._ready_callback)
-       
-#         #TODO: If it can't find the apriltag for a specific amount of time, go to rest
-#         rospy.loginfo("Executing READY State")
-#         while True:
-#             if self.flag:
-#                 self.flag = False
-#                 self.time = rospy.get_time()
-
-#             with self._mutex:
-#                 #works thru transition message from subscriber and switches states
-#                 if self.data == "idle":
-#                     self.request = None
-#                     # self.goto_client.cancel_all_goals()
-#                     return 'idle'
-
-#             #TODO: Check if the apriltag (cube) is present
-#             if self.pose:
-#                 #TODO: Move the arm to the ready pose and send it to movegroup
-#                 print(self.pose)
-#                 return 'target_detected'
-#             else:
-#                 # If it doesn't detect in 20 seconds, it'll go back to rest position
-#                 print(rospy.get_time())
-#                 print(self.time)
-#                 if rospy.get_time() - self.time > 20:
-#                     self.flag = True
-#                     return 'relax' 
-
-#             if self.preempt_requested():
-#                 rospy.loginfo("preempt triggered")
-#                 return 'preempted'
-
-#             self.rate.sleep()
-
-# define state Rest
-class Rest(smach.State):
-    def __init__(self,mo):
-        smach.State.__init__(self, outcomes=['preempted',
-                                             'idle'])
-        self._mutex = Lock()
-        self.mo = mo
-        self.rate = rospy.Rate(RATE) # 10hz
-        rospy.Subscriber('state_transition', String, self._state_transition)
-
-    def _state_transition(self,msg):
-        rospy.loginfo("IN REST CALLBACK, state transition")
-        with self._mutex:
-            self.data = msg.data
-
-    def execute(self, userdata):
-        rospy.loginfo("Executing REST State")
-        while True:
-
-            #TODO: Move the robot back to arm rest position
-
-
-            if self.preempt_requested():
-                rospy.loginfo("preempt triggered")
-                return 'preempted'
-
-            self.rate.sleep()
-
-
-
-
 # define state Approach
 class Approach(smach.State):
     def __init__(self, mo):
-        smach.State.__init__(self, outcomes=['target_changed',
+        smach.State.__init__(self, outcomes=['approach',
                                              'target_locked',
                                              'reachyHome',
-                                             'preempted'])
+                                             'preempted',
+                                             'relax'])
         self._mutex = Lock()
         self.mo = mo
-        self.rate = rospy.Rate(RATE) # 10hz
+        self.rate = rospy.Rate(50) # 10hz
         self.flag = True
         self.pose = None
-
+        self.a = True
+        self.reachyRelax = rospy.ServiceProxy('relax', Relax)
         #TODO: the move_interface object should be passed among extend and grasp 
 
     def _cube1_callback(self, msg):
-        rospy.loginfo("Found a cube")
-        with self._mutex:
-            self.pose = msg.pose
+        self.mo.lookup_tf()
 
     def execute(self, userdata):
         rospy.loginfo("Executing APPROACH State")
         cubeSub = rospy.Subscriber('cubePose', PoseStamped, self._cube1_callback)
-
         if self.flag:       
             self.flag = False
             self.time = rospy.get_time()
-                
+            
+        self.mo.lookup_tf()
+        
+        local_approach_pose = geometry_msgs.msg.Pose()
+
         while True:
-            #TODO: get a pose from the callback and then update the metadata. Then unsubscribe to the topic so that it won't be triggered
-            if self.pose:
-                trans = self.tfBuffer.lookup_transform('pedestal', 'apriltag_5',rospy.Time(0))  #apriltag5 is on the cube
-                rospy.loginfo(trans)
-                # save the cube pose to the object
-                rospy.loginfo("cube pose")
-                # rospy.loginfo( self.mo.cube_pose)
-                # userdata.approach_out = userdata.approach_in
-                # self.mo.cube_pose = self.pose
-                cubeSub.unregister()
-                print("unsubscribed from cube topic")
-                rospy.loginfo("copy")
-                # rospy.loginfo( self.mo.cube_pose)
-                # tranform = userdata.approach_in.pose_transform('pedestal','apriltag_4')
-                # rospy.loginfo(tranform)
 
-
-
-
-                #TODO: create trasnform method in the move_interface.py => this will create the transform between two frames
-
-                #TODO: 
-
-                #TODO:
-
-                #TODO:
-                
-            else:
-                # If it doesn't detect in 20 seconds, it'll go back to rest position
-
-                if rospy.get_time() - self.time > 20:
-                    self.flag = True
-                    return 'rest' 
-                
             if self.preempt_requested():
                 rospy.loginfo("preempt triggered")
-                return 'preempted'
+                relaxReq = RelaxRequest()
+                relaxReq.side = "left"
+                self.reachyRelax(relaxReq)
+                # return 'relax'
 
             self.rate.sleep()
+            
+            local_approach_pose = copy.deepcopy(self.mo.approach_pose)
+            # rospy.loginfo(local_approach_pose)
+
+            result = self.mo.goToPose(local_approach_pose)
+
+            if result == 0: # no plan
+                rospy.loginfo("couldnt find a plan. attempting to find a plan again...")
+                continue
+            elif result == 1: # target changed
+                rospy.loginfo("target changed. attempting to find a plan again...")
+                continue
+            elif result == 2: # error
+                rospy.loginfo("error in actuators")
+                return "relax"
+            elif result == 3: # successful
+                rospy.loginfo("successfully moved to goal. changing to extend" )
+                return 'target_locked'
+            else: # successfully moved but not within tolerance #TODO: This is a "minor" issue that requires calibration
+                rospy.loginfo("successfully moved to goal. changing to extend" )
+                continue
+            
+
 
 # define state Extend. 
 class Extend(smach.State):
     def __init__(self, mo):
-        smach.State.__init__(self, outcomes=['target_changed',
+        smach.State.__init__(self, outcomes=['approach',
                                              'target_locked',
                                              'preempted',
-                                             'reachyHome'])
+                                             'reachyHome',
+                                             'relax'])
         self.rate = rospy.Rate(RATE) # 10hz
         self._mutex = Lock()
         self.mo = mo
+        self.reachyRelax = rospy.ServiceProxy('relax', Relax)
 
     def execute(self, userdata):
         rospy.loginfo("Executing EXTEND State")
         while True:
-            if 2>1:
-                return 'target_changed'
-            elif 33>3:
-                return 'target_locked'
-            elif 3>2:
-                return 'ready'
-            
+
             if self.preempt_requested():
-                    rospy.loginfo("preempt triggered")
-                    return 'preempted'
-            
+                rospy.loginfo("preempt triggered")
+                relaxReq = RelaxRequest()
+                relaxReq.side = "left"
+                self.reachyRelax(relaxReq)
+
             self.rate.sleep()
+
+            local_approach_pose = copy.deepcopy(self.mo.grasp_pose)
+            # rospy.loginfo(local_approach_pose)
+
+            result = self.mo.goToPose(local_approach_pose)
+
+            if result == 0: # no plan
+                rospy.loginfo("couldnt find a plan. attempting to find a plan again...")
+                continue
+            elif result == 1: # target changed
+                rospy.loginfo("target changed. attempting to find a plan again...")
+                continue
+            elif result == 2: # error
+                rospy.loginfo("error in actuators")
+                return "relax"
+            elif result == 3: # successful
+                rospy.loginfo("successfully moved to goal. changing to extend" )
+                return 'target_locked'
+            else: # successfully moved but not within tolerance #TODO: This is a "minor" issue that requires calibration
+                rospy.loginfo("successfully moved to goal. changing to extend" )
+                continue
+        
+            
 
 # define state Grasp. This is actually moving the gripper to hold the cube
 class Grasp(smach.State):
@@ -247,10 +178,10 @@ class Grasp(smach.State):
     def execute(self, userdata):
         rospy.loginfo("Executing GRASP State")
         while True:
-            if 4>3:
-                return 'finished'
-            elif 3<5:
-                return 'ready'
+            # if 4>3:
+            #     return 'finished'
+            # elif 3<5:
+            #     return 'ready'
 
             if self.preempt_requested():
                     rospy.loginfo("preempt triggered")
@@ -276,8 +207,8 @@ class MoveToAprilTagHome(smach.State):
                 return 'ready'
 
             if self.preempt_requested():
-                    rospy.loginfo("preempt triggered")
-                    return 'preempted'
+                rospy.loginfo("preempt triggered")
+                return 'preempted'
 
             self.rate.sleep()
 
@@ -292,6 +223,16 @@ class MoveToReachyHome(smach.State):
         self.flag = True
         self.pose = None
         self.mo = mo
+        
+        self.readyPose = Pose()
+        self.readyPose.position.x = 0.1
+        self.readyPose.position.y = 0.2 
+        self.readyPose.position.z = 0.65
+        q = quaternion_from_euler(0.0, -math.pi*0.5, 0.0)
+        self.readyPose.orientation.x = q[0]
+        self.readyPose.orientation.y = q[1]
+        self.readyPose.orientation.z = q[2]
+        self.readyPose.orientation.w = q[3]
 
     def execute(self, userdata):
         rospy.loginfo("Executing MoveToReachyHome State")
@@ -301,16 +242,62 @@ class MoveToReachyHome(smach.State):
             if self.preempt_requested():
                 rospy.loginfo("preempt triggered")
                 return 'preempted'
-
+            
+            self.mo.approach_pose = self.readyPose
             #TODO: Move the arm to the ready pose and send it to movegroup
             rospy.loginfo("MOVING THE ARM TO HOME POSITION...")
-            time.sleep(1)
+
+            result = self.mo.goToPose(self.readyPose)
+
             rospy.loginfo("MOVED THE ARM TO HOME POSITION")
             
             self.rate.sleep()
 
-            return 'approach'
+            if result == 3:
+                return 'approach'
 
+# define state Rest
+class Rest(smach.State):
+    def __init__(self,mo):
+        smach.State.__init__(self, outcomes=['preempted',
+                                             'idle'])
+        self._mutex = Lock()
+        self.mo = mo
+        self.rate = rospy.Rate(RATE) # 10hz
+        # rospy.Subscriber('state_transition', String, self._state_transition)
+
+        self.restPose = Pose()
+        self.restPose.position.x = 0.0
+        self.restPose.position.y = 0.2 
+        self.restPose.position.z = 0.354
+        q = quaternion_from_euler(0.0, 0.0, 0.0)
+        self.restPose.orientation.x = q[0]
+        self.restPose.orientation.y = q[1]
+        self.restPose.orientation.z = q[2]
+        self.restPose.orientation.w = q[3]
+        
+    def _state_transition(self,msg):
+        rospy.loginfo("IN REST CALLBACK, state transition")
+        with self._mutex:
+            self.data = msg.data
+
+    def execute(self, userdata):
+        rospy.loginfo("Executing REST State")
+        while True:
+
+            #TODO: Move the robot back to arm rest position
+            rospy.wait_for_service('relax')
+            reachyRelax = rospy.ServiceProxy('relax', Relax)
+
+            relaxReq = RelaxRequest()
+            relaxReq.side = "left"
+            result = reachyRelax(relaxReq)
+
+            if self.preempt_requested():
+                rospy.loginfo("preempt triggered")
+                return 'preempted'
+
+            self.rate.sleep()
 
 # define state Grasp. This is actually moving the gripper to hold the cube
 class Release(smach.State):
@@ -350,7 +337,7 @@ def main():
 
     #TODO: create an isntance of move interface and pass it among approach, extend and grasp.
     # This is important because this object contains all the attributes of the system and must be shared 
-    move_interface_object = move_interface.MoveGroupPythonInterfaceTutorial()
+    move_interface_object = move_interface.MoveGroupPythonInterfaceTutorial("left")
     # ERROR ABOUT THE ROBOT DESCRIPTION (NEED TO BE CONNECTED TO THE PHYSICAL ROBOT? TEST IT OUT ON THE REAL ROBOT)
 
     # Open the container
@@ -366,24 +353,26 @@ def main():
         
         # check if there's no more apriltags to be moved. have some sort of flag that checks if the apriltag has been moved to home.
         # if everything has been moved then end the run
-        smach.StateMachine.add('MOVETOREACHYHOME', MoveToReachyHome(), 
+        smach.StateMachine.add('MOVETOREACHYHOME', MoveToReachyHome(move_interface_object), 
                                transitions={'approach':'APPROACH',
                                             'rest':'REST',
                                             'preempted': 'exit'})
 
         smach.StateMachine.add('APPROACH', Approach(move_interface_object), 
-                               transitions={'target_changed':'APPROACH',
+                               transitions={'approach':'APPROACH',
                                             'target_locked':'EXTEND',
                                             'reachyHome':'MOVETOREACHYHOME',
-                                            'preempted': 'exit'})
+                                            'preempted': 'exit',
+                                            'relax':'REST'})
                                 # remapping={'approach_in':'move_interface_object',
                                 #             'approach_in':'move_interface_object'})
                                             
         smach.StateMachine.add('EXTEND', Extend(move_interface_object), 
-                               transitions={'target_changed':'APPROACH',
+                               transitions={'approach':'APPROACH',
                                             'target_locked':'GRASP',
                                             'reachyHome':'MOVETOREACHYHOME',
-                                            'preempted': 'exit'})
+                                            'preempted': 'exit',
+                                            'relax':'REST'})
                                 # remapping={'extend_in':'move_interface_object',
                                 #             'extend_out':'move_interface_object'})
         smach.StateMachine.add('GRASP', Grasp(move_interface_object), 

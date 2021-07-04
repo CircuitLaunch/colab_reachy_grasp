@@ -159,7 +159,7 @@ class Calibrator:
                                     rospy.loginfo('Recovered from actuator error, retrying')
                                     recovering = False
                                 else:
-                                    if self.errorIds == None or len(self.errorIds) = 0:
+                                    if self.errorIds == None or len(self.errorIds) == 0:
                                         recovering = False
                                     else:
                                         rospy.loginfo('Failed to recover from actuator error, waiting 10 seconds, then trying to recover again')

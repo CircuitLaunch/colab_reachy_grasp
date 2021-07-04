@@ -19,9 +19,9 @@
 
 
   <include file="$(find colab_reachy_tf)/launch/tf.launch">
-    <arg name="camera_device" value="/dev/video2" />
+    <arg name="camera_device" value="/dev/v4l/by-id/usb-046d_0825_87B0B2F0-video-index0" />
     <arg name="use_rviz" value="false" />
-  </include> 
+  </include>
 
     <node pkg="reachy_gazebo_grasp" type="move_interface.py" name="move_arm_to_cube" respawn="false" output="screen"/> -->
     <node name="move_interface" pkg="reachy_gazebo_grasp" type="move_interface.py"

@@ -8,9 +8,11 @@ from threading import Lock, Thread
 from apriltag_ros.msg import AprilTagDetectionArray
 from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import String
+from colab_reachy_control.srv import Recover, RecoverRequest, Relax, RelaxRequest, Zero, ZeroRequest
 import time
 import copy
 import move_interface
+import geometry_msgs.msg
 
 RATE = 10
 # define state Idle. 
@@ -117,6 +119,7 @@ class Rest(smach.State):
         self._mutex = Lock()
         self.mo = mo
         self.rate = rospy.Rate(RATE) # 10hz
+        self.reachyRelax = rospy.ServiceProxy('relax', Relax)
         # rospy.Subscriber('state_transition', String, self._state_transition)
 
     def _state_transition(self,msg):
@@ -129,7 +132,9 @@ class Rest(smach.State):
         while True:
 
             #TODO: Move the robot back to arm rest position
-
+            relaxReq = RelaxRequest()
+            relaxReq.side = "left"
+            self.reachyRelax(relaxReq)
 
             if self.preempt_requested():
                 rospy.loginfo("preempt triggered")
@@ -190,6 +195,7 @@ class Approach(smach.State):
         self.mo.lookup_tf()
         rospy.loginfo("TEST")
         rospy.loginfo(self.mo.approach_pose)
+        local_approach_pose = geometry_msgs.msg.Pose()
 
         #TODO: 1. Find if there's a cube in sight
         #      2. If the cube position changes by a lot, then run this state again -> will need to keep track of the previous cube pose    
@@ -214,7 +220,7 @@ class Approach(smach.State):
                 if self.mo.distance(self.mo.approach_pose, local_approach_pose) <= self.mo.min_approach_error:
                     rospy.loginfo("target has moved. aborting current trj and approaching new goal")
                     # abort current trajectory
-                    self.abort_trajectory()
+                    self.mo.abort_trajectory()
                     # trigger new trajectory
                     local_approach_pose = copy.deepcopy(self.mo.approach_pose)
                     self.mo.go_to_pose(local_approach_pose)
@@ -223,6 +229,7 @@ class Approach(smach.State):
             if self.mo.distance(self.mo.current_pose, local_approach_pose) <= self.mo.min_approach_error:
                 # approach_pose_attained = True
                 self.trajectory_in_progress = False
+                rospy.loginfo("Approach succe")
                 return 'target_locked' # move to extend state
             
 
@@ -232,7 +239,7 @@ class Approach(smach.State):
             
             if self.preempt_requested():
                 rospy.loginfo("preempt triggered")
-                return 'preempted'
+                return 'relax'
 
             rospy.loginfo("in loop")
             self.rate.sleep()

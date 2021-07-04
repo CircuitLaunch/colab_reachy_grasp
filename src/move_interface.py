@@ -89,8 +89,10 @@ class MoveGroupPythonInterfaceTutorial(object):
         ## If you are using a different robot, change this value to the name of your robot
         ## arm planning group.
         ## This interface can be used to plan and execute motions:
-        group_name = "left_arm"
-        move_group = moveit_commander.MoveGroupCommander(group_name)
+
+        # group_name = "left_arm"
+        # move_group = moveit_commander.MoveGroupCommander(group_name)
+        self.current_group = moveit_commander.MoveGroupCommander(f'{ side }_arm')
 
         ## Create a `DisplayTrajectory`_ ROS publisher which is used to display
         ## trajectories in Rviz:
@@ -464,24 +466,48 @@ class MoveGroupPythonInterfaceTutorial(object):
 
 
 
-    def go_to_pose(self, pose):
+    # def go_to_pose(self, pose):
 
-        self.move_group.set_pose_target(pose)
-        plan = self.move_group.plan()
-        rospy.loginfo("pose is")
-        rospy.loginfo(pose)
-        rospy.loginfo(plan)
-        if plan[0]:   
-            rospy.loginfo("FOUND PLAN") 
-            self.move_group.execute(plan[1], wait=False)
-            self.trajectory_in_progress = True
-            return True
+    #     self.move_group.set_pose_target(pose)
+    #     plan = self.move_group.plan()
+    #     rospy.loginfo("pose is")
+    #     rospy.loginfo(pose)
+    #     rospy.loginfo(plan)
+    #     if plan[0]:   
+    #         rospy.loginfo("FOUND PLAN") 
+    #         self.move_group.execute(plan[1], wait=False)
+    #         self.trajectory_in_progress = True
+    #         return True
+    #     else:
+    #         self.trajectory_in_progress = False
+    #         rospy.loginfo("no plan")
+    #         # local_approach_pose = copy.deepcopy(self.approach_pose)
+    #         return False
+    def goToPose(self, pose):
+        self.current_group.set_pose_target(pose)
+        plan = self.current_group.plan()
+        result = 1
+        if plan[0]:
+            execThread = Thread(target=self.trajectoryLoop, args=(self.current_group, plan[1]))
+            self.isExecuting = True
+            result = 0
+            execThread.start()
+            # Loop here testing for overloads
+            while(self.isExecuting):
+                self.hertz.sleep()
+                if self.errorIds != None:
+                    self.current_group.stop()
+                    result = 2
+                    self.isExecuting = False
+            execThread.join()
         else:
-            self.trajectory_in_progress = False
-            rospy.loginfo("no plan")
-            # local_approach_pose = copy.deepcopy(self.approach_pose)
-            return False
+            self.hertz.sleep()
 
+        return result
+
+    def trajectoryLoop(self, group, plan):
+        group.execute(plan, wait = True)
+        self.isExecuting = False
 
     def abort_trajectory(self):
         self.move_group.stop()

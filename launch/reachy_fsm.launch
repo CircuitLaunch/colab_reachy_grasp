@@ -23,6 +23,6 @@
 
   <!-- <node pkg="rviz" type="rviz" name="rviz" args="-d $(find colab_reachy_tf)/rviz/default.rviz" if="$(arg use_rviz)"/> -->
 
-  <!-- <include file="$(find colab_reachy_grasp)/launch/apriltag_topics.launch" /> -->
+  <include file="$(find colab_reachy_grasp)/launch/apriltag_topics.launch" />
 
 </launch>

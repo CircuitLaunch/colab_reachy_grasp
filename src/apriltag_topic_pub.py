@@ -22,9 +22,9 @@ class Apriltag_Converter():
             cube_pose = geometry_msgs.msg.Pose()
             cube_pose.position = self.trans.transform.translation
             cube_pose.orientation = self.trans.transform.rotation
+            cubeATPub.publish(cube_pose)
 
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as ex:
-            rospy.loginfo(tf2_ros.LookupException)
             rate.sleep()
 
 if __name__ == "__main__":  

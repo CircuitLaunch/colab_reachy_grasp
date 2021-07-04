@@ -10,39 +10,31 @@ import time
 class Apriltag_Converter():
 
     def __init__(self):
-        pass
-        # self.listener = tf2_ros.TransformListener(self.tfBuffer)
+        self.tfBuffer = tf2_ros.Buffer()
+        self.listener = tf2_ros.TransformListener(self.tfBuffer)
 
     def apriltag_callback(self, msgs):
-        self.tfBuffer = tf2_ros.Buffer()
         rate = rospy.Rate(5.0)
         
         try:
-            # rospy.loginfo("cb")
             self.trans = self.tfBuffer.lookup_transform('pedestal', 'apriltag_5',rospy.Time(0))
+            # rospy.loginfo(self.trans)
             cube_pose = geometry_msgs.msg.Pose()
             cube_pose.position = self.trans.transform.translation
             cube_pose.orientation = self.trans.transform.rotation
-            # trans = self.tfBuffer.lookup_transform('pedestal', 'apriltag_5',rospy.Time(0))
-            rospy.loginfo(f'wtf: {self.trans}')
-            # for msg in msgs.detections:
-           
-                # if msg.id[0] == 5: # cube
-                #     _pose = geometry_msgs.msg.Pose()
-                #     _pose.position = trans.transform.translation
-                #     _pose.orientation = trans.transform.rotation
-                #     rospy.loginfo(_pose)
-                #     # poseStamped.header.frame_id = 'cube'
-                #     cubeATPub.publish(_pose)
 
-        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as ex:
+            rospy.loginfo(tf2_ros.LookupException)
             rate.sleep()
 
 if __name__ == "__main__":  
     try:
-        rospy.loginfo("in main")
-        apriltag_converter = Apriltag_Converter()
+
         rospy.init_node('apriltag_pose_pub',anonymous=True)
+        apriltag_converter = Apriltag_Converter()
+
+        print('hola')
+        rospy.loginfo("in main")
 
         # rospy.init_node('tag_detection_to_tf')
         rospy.Subscriber('/tag_detections',AprilTagDetectionArray,apriltag_converter.apriltag_callback)

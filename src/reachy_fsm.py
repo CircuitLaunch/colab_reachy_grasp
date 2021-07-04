@@ -9,6 +9,7 @@ from apriltag_ros.msg import AprilTagDetectionArray
 from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import String
 import time
+import copy
 import move_interface
 
 RATE = 1
@@ -158,7 +159,8 @@ class Approach(smach.State):
         rospy.loginfo("Found a cube")
         #TODO: keep updating the pose of the cube
         with self._mutex:
-            self.pose = msg.pose
+            # self.pose = msg.pose
+            self.mo.update_cube_pose()
 
     def execute(self, userdata):
         rospy.loginfo("Executing APPROACH State")
@@ -168,6 +170,18 @@ class Approach(smach.State):
             self.flag = False
             self.time = rospy.get_time()
 
+        '''
+        #TODO: outmost layer: check if the trj is in progress
+        if trj is NOT in progress
+            go to goal and set the local approach pose to be the same as approach pose
+        if trj is in progress
+            check if the local pose and the appproach pose has changed. if it changes then that
+            means that the cube pose has changed. therefore i need to abort trj 
+        keep checking if the distance between current pose and the goal is within boundary
+        '''
+        local_approach_pose = copy.deepcopy(self.approach_pose)
+
+
         #TODO: 1. Find if there's a cube in sight
         #      2. If the cube position changes by a lot, then run this state again -> will need to keep track of the previous cube pose    
         while True:
@@ -175,54 +189,99 @@ class Approach(smach.State):
             # This MUST be done once the plan has started
 
 
+            # keep updating the cube poses
+            # self.mo.update_cube_pose()
+            # local_approach_pose = copy.deepcopy(self.approach_pose)
 
+            # if trj is not in progress, go to the local_approach pose(which is set to be the same as approach pose at init) 
+            if not self.mo.trajectory_in_progress:
+                self.mo.go_to_pose(local_approach_pose)
+                # local_approach_pose = copy.deepcopy(self.approach_pose)
 
-            #TODO: get a pose from the callback and then update the metadata. Then unsubscribe to the topic so that it won't be triggered
-            rospy.loginfo("outside loop")
-            # Check if cube is detected from the camera
-            if self.pose:
-                #apriltag5 is on the cube
-                # self.mo.find_cube_pose()
-
-                if self.a:
-                    rospy.loginfo(self.mo.update_cube_pose())
-                    self.a = False
-                    cubeSub.unregister()
-                    print("unsubscribed from cube topic")
-                rospy.loginfo("copy")
-                rospy.loginfo(self.mo.approach_pose)
-                # rospy.loginfo( self.mo.cube_pose)
-                # tranform = userdata.approach_in.pose_transform('pedestal','apriltag_4')
-                # rospy.loginfo(tranform)
-
-
-            #TODO: check if the tfj is in progress. If yes, then keep monitoring if the dist is close
-            # if the trj is NOT in progress, check if the
-
-                #TODO: check if the trj is in progress. 
-
-                #TODO: check if the cube pose has changed by a lot. If so, run the approach state again
-
-                #TODO: check if the current pose (from Moveit) is within certain threshold compared to the goal pose
-                if self.mo.distance(self.mo.current_pose, local_approach_pose) <= self.mo.min_approach_error:
-                    approach_pose_attained = True
-                    self.trajectory_in_progress = False
-                    return 'target_locked' # move to extend state
-                
-                #TODO:I need the local approach pose to keep track
-                
             else:
-                # If it doesn't detect in 20 seconds, it'll go back to rest position
+                if self.mo.distance(self.mo.approach_pose, local_approach_pose) <= self.mo.min_approach_error:
+                    rospy.loginfo("target has moved. aborting current trj and approaching new goal")
+                    # abort current trajectory
+                    self.abort_trajectory()
+                    # trigger new trajectory
+                    local_approach_pose = copy.deepcopy(self.mo.approach_pose)
+                    self.mo.go_to_pose(local_approach_pose)
 
-                if rospy.get_time() - self.time > 20:
-                    self.flag = True
-                    return 'rest' 
+            # check if the arm is within the threshold which means it's near the goal
+            if self.mo.distance(self.mo.current_pose, local_approach_pose) <= self.mo.min_approach_error:
+                # approach_pose_attained = True
+                self.trajectory_in_progress = False
+                return 'target_locked' # move to extend state
                 
+
+            if rospy.get_time() - self.time > 20:
+                self.flag = True
+                return 'rest' 
+            
             if self.preempt_requested():
                 rospy.loginfo("preempt triggered")
                 return 'preempted'
 
             self.rate.sleep()
+
+
+            # #TODO: get a pose from the callback and then update the metadata. Then unsubscribe to the topic so that it won't be triggered
+            # rospy.loginfo("outside loop")
+            # # Check if cube is detected from the camera
+            # if self.pose:
+
+            #     if self.a:
+            #         rospy.loginfo(self.mo.update_cube_pose())
+            #         self.a = False
+            #         cubeSub.unregister()
+            #         print("unsubscribed from cube topic")
+            #     rospy.loginfo("copy")
+            #     rospy.loginfo(self.mo.approach_pose)
+            #     # rospy.loginfo( self.mo.cube_pose)
+            #     # tranform = userdata.approach_in.pose_transform('pedestal','apriltag_4')
+            #     # rospy.loginfo(tranform)
+
+            #     # if the trj is not in progress, it'll set the approach goal to a new variable
+            #     if not self.mo.trajectory_in_progress:
+            #         self.mo.go_to_pose()
+            #         local_approach_pose = copy.deepcopy(self.approach_pose)
+            #     # if the trj is in progress, it'll keep checking if the cube location has changed
+            #     else:
+            #         if self.mo.distance(self.mo.approach_pose, local_approach_pose) <= self.mo.min_approach_error:
+            #             rospy.loginfo("target has moved. aborting current trj and approaching new goal")
+            #             # abort current trajectory
+            #             self.abort_trajectory()
+            #             # trigger new trajectory
+            #             local_approach_pose = copy.deepcopy(self.mo.approach_pose)
+            #             self.mo.go_to_pose(local_approach_pose)
+
+            # #TODO: check if the tfj is in progress. If yes, then keep monitoring if the dist is close
+            # # if the trj is NOT in progress, check if the
+
+            #     #TODO: check if the trj is in progress. 
+
+            #     #TODO: check if the cube pose has changed by a lot. If so, run the approach state again
+
+            #     #TODO: check if the current pose (from Moveit) is within certain threshold compared to the goal pose
+            #     if self.mo.distance(self.mo.current_pose, local_approach_pose) <= self.mo.min_approach_error:
+            #         approach_pose_attained = True
+            #         self.trajectory_in_progress = False
+            #         return 'target_locked' # move to extend state
+                
+            #     #TODO:I need the local approach pose to keep track
+                
+            # else:
+            #     # If it doesn't detect in 20 seconds, it'll go back to rest position
+
+            #     if rospy.get_time() - self.time > 20:
+            #         self.flag = True
+            #         return 'rest' 
+                
+            # if self.preempt_requested():
+            #     rospy.loginfo("preempt triggered")
+            #     return 'preempted'
+
+            # self.rate.sleep()
 
 # define state Extend. 
 class Extend(smach.State):

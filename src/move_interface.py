@@ -8,6 +8,7 @@ import tf
 import sys
 import copy
 import rospy
+from geometry_msgs.msg import Pose
 import moveit_commander
 import moveit_msgs.msg
 from moveit_msgs.msg import MoveItErrorCodes
@@ -56,7 +57,7 @@ def all_close(goal, actual, tolerance):
 
 class MoveGroupPythonInterfaceTutorial(object):
     """MoveGroupPythonInterfaceTutorial"""
-    def __init__(self):
+    def __init__(self, side):
 
         super(MoveGroupPythonInterfaceTutorial, self).__init__()
 
@@ -94,7 +95,7 @@ class MoveGroupPythonInterfaceTutorial(object):
 
         # group_name = "left_arm"
         # move_group = moveit_commander.MoveGroupCommander(group_name)
-        self.current_group = moveit_commander.MoveGroupCommander(f'{ side }_arm')
+        move_group = moveit_commander.MoveGroupCommander(f'{ side }_arm')
 
         ## Create a `DisplayTrajectory`_ ROS publisher which is used to display
         ## trajectories in Rviz:
@@ -145,6 +146,18 @@ class MoveGroupPythonInterfaceTutorial(object):
         self.trans = None
         self.hertz = rospy.Rate(30)
         self.grasping_state_init()
+
+        self.restPose = Pose()
+        self.restPose.position.x = 0.0
+        self.restPose.position.y = 0.2 if side == 'left' else -0.2
+        self.restPose.position.z = 0.354
+        q = quaternion_from_euler(0.0, 0.0, 0.0)
+        self.restPose.orientation.x = q[0]
+        self.restPose.orientation.y = q[1]
+        self.restPose.orientation.z = q[2]
+        self.restPose.orientation.w = q[3]
+
+        
         # self.grasping_thread = Thread(target=self.grasping_state_loop)
         # self.grasping_thread.start()
 
@@ -435,7 +448,7 @@ class MoveGroupPythonInterfaceTutorial(object):
 
         return best_pose
 
-    def calc_grasp_pose(self, cube_pose):
+    def calc_extend_pose(self, cube_pose):
         best_pose = geometry_msgs.msg.Pose()
 
         # TODO: Calculate the grasp pose given the cube pose
@@ -460,7 +473,7 @@ class MoveGroupPythonInterfaceTutorial(object):
         self.approach_pose = self.calc_approach_pose(cube_pose)
         # rospy.loginfo("this is the approach pose")
         # rospy.loginfo(self.approach_pose)
-        self.grasp_pose = self.calc_grasp_pose(cube_pose)
+        self.grasp_pose = self.calc_extend_pose(cube_pose)
 
     def distance(self, pose1, pose2):
         dx = pose1.position.x - pose2.position.x
@@ -488,44 +501,48 @@ class MoveGroupPythonInterfaceTutorial(object):
     #         # local_approach_pose = copy.deepcopy(self.approach_pose)
     #         return False
     def goToPose(self, pose):
-        self.current_group.set_pose_target(pose)
-        plan = self.current_group.plan()
-        result = 1
-        if plan[0]:
-            execThread = Thread(target=self.trajectoryLoop, args=(self.current_group, plan[1]))
+        self.move_group.set_pose_target(pose)
+        plan = self.move_group.plan()
+        plan_status = plan[0]
+        result = 0 # no plan
+
+        if plan_status:
+            rospy.loginfo("Plan Found")
+            execThread = Thread(target=self.trajectoryLoop, args=(self.move_group, plan[1]))
             self.isExecuting = True
-            result = 0
             execThread.start()
             # Loop here testing for overloads
             while(self.isExecuting):
                 self.hertz.sleep()
                 if self.errorIds != None:
-                    self.current_group.stop()
+                    self.move_group.stop()
                     result = 2
                     self.isExecuting = False
                 # check if cube pose has changed by a lot. if so abort trj
                 rospy.loginfo("distance: ")
                 rospy.loginfo(self.distance(self.approach_pose, pose))
+                
                 if self.distance(self.approach_pose, pose) > self.min_approach_error:
                     rospy.loginfo("target has moved. aborting current trj.")
                     # abort current trajectory
                     self.abort_trajectory()
                     # trigger new trajectory
                     self.isExecuting = False
-                    result = 3
-                    # local_approach_pose = copy.deepcopy(self.mo.approach_pose)
-                    # self.mo.go_to_pose(local_approach_pose)
+                    result = 1 # target moved
 
             execThread.join()
 
             # check if the goal is within tolerance
+            rospy.loginfo("checking goal threshold")
+            rospy.loginfo(self.distance(self.current_pose, pose))
             if self.distance(self.current_pose, pose) <= self.min_approach_error:
                 rospy.loginfo("Approach success")
-                result = 1 # move to extend state
+                result = 3 # move to extend state
             else:
                 rospy.loginfo("trj successful but not within threshold")
                 result = 4
         else:
+            rospy.loginfo("Plan NOT Found")
             self.hertz.sleep()
 
         return result

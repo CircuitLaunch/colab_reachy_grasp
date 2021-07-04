@@ -12,7 +12,7 @@ import time
 import copy
 import move_interface
 
-RATE = 1
+RATE = 10
 # define state Idle. 
 class Idle(smach.State):
     def __init__(self):
@@ -117,7 +117,7 @@ class Rest(smach.State):
         self._mutex = Lock()
         self.mo = mo
         self.rate = rospy.Rate(RATE) # 10hz
-        rospy.Subscriber('state_transition', String, self._state_transition)
+        # rospy.Subscriber('state_transition', String, self._state_transition)
 
     def _state_transition(self,msg):
         rospy.loginfo("IN REST CALLBACK, state transition")
@@ -149,23 +149,26 @@ class Approach(smach.State):
                                              'preempted'])
         self._mutex = Lock()
         self.mo = mo
-        self.rate = rospy.Rate(RATE) # 10hz
+        self.rate = rospy.Rate(50) # 10hz
         self.flag = True
         self.pose = None
         self.a = True
         #TODO: the move_interface object should be passed among extend and grasp 
 
     def _cube1_callback(self, msg):
-        rospy.loginfo("Found a cube")
+        # rospy.loginfo("Found a cube")
         #TODO: keep updating the pose of the cube
-        with self._mutex:
+        # with self._mutex:
+            # rospy.loginfo("in callback")
             # self.pose = msg.pose
-            self.mo.update_cube_pose()
+            # self.mo.on_cube_detected(self.mo.)
+            # rospy.loginfo("printing out approach pose")
+            # rospy.loginfo(self.mo.approach_pose)
+        self.mo.lookup_tf()
 
     def execute(self, userdata):
         rospy.loginfo("Executing APPROACH State")
         cubeSub = rospy.Subscriber('cubePose', PoseStamped, self._cube1_callback)
-
         if self.flag:       
             self.flag = False
             self.time = rospy.get_time()
@@ -179,8 +182,14 @@ class Approach(smach.State):
             means that the cube pose has changed. therefore i need to abort trj 
         keep checking if the distance between current pose and the goal is within boundary
         '''
-        local_approach_pose = copy.deepcopy(self.approach_pose)
-
+        # rospy.loginfo("printing out approach pose")
+        # rospy.loginfo(self.mo.approach_pose)
+        # local_approach_pose = copy.deepcopy(self.mo.approach_pose)
+        # rospy.loginfo("printing out local approach pose")
+        # rospy.loginfo(local_approach_pose)
+        self.mo.lookup_tf()
+        rospy.loginfo("TEST")
+        rospy.loginfo(self.mo.approach_pose)
 
         #TODO: 1. Find if there's a cube in sight
         #      2. If the cube position changes by a lot, then run this state again -> will need to keep track of the previous cube pose    
@@ -195,9 +204,12 @@ class Approach(smach.State):
 
             # if trj is not in progress, go to the local_approach pose(which is set to be the same as approach pose at init) 
             if not self.mo.trajectory_in_progress:
+                local_approach_pose = copy.deepcopy(self.mo.approach_pose)
+                # rospy.loginfo(local_approach_pose)
                 self.mo.go_to_pose(local_approach_pose)
                 # local_approach_pose = copy.deepcopy(self.approach_pose)
-
+                # rospy.loginfo("printing out local approach pose")
+                # rospy.loginfo(local_approach_pose)
             else:
                 if self.mo.distance(self.mo.approach_pose, local_approach_pose) <= self.mo.min_approach_error:
                     rospy.loginfo("target has moved. aborting current trj and approaching new goal")
@@ -212,16 +224,17 @@ class Approach(smach.State):
                 # approach_pose_attained = True
                 self.trajectory_in_progress = False
                 return 'target_locked' # move to extend state
-                
+            
 
-            if rospy.get_time() - self.time > 20:
-                self.flag = True
-                return 'rest' 
+            # if rospy.get_time() - self.time > 120:
+            #     self.flag = True
+            #     return 'rest' 
             
             if self.preempt_requested():
                 rospy.loginfo("preempt triggered")
                 return 'preempted'
 
+            rospy.loginfo("in loop")
             self.rate.sleep()
 
 

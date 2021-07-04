@@ -76,9 +76,9 @@ class Approach(smach.State):
     def execute(self, userdata):
         rospy.loginfo("Executing APPROACH State")
         cubeSub = rospy.Subscriber('cubePose', PoseStamped, self._cube1_callback)
-        if self.flag:       
-            self.flag = False
-            self.time = rospy.get_time()
+        # if self.flag:       
+        #     self.flag = False
+        #     self.time = rospy.get_time()
             
         self.mo.lookup_tf()
         
@@ -169,7 +169,7 @@ class Extend(smach.State):
 # define state Grasp. This is actually moving the gripper to hold the cube
 class Grasp(smach.State):
     def __init__(self, mo):
-        smach.State.__init__(self, outcomes=['apriltagHome',
+        smach.State.__init__(self, outcomes=['reachyHome',
                                              'preempted'])
         self.rate = rospy.Rate(RATE) # 10hz
         self._mutex = Lock()
@@ -178,16 +178,24 @@ class Grasp(smach.State):
     def execute(self, userdata):
         rospy.loginfo("Executing GRASP State")
         while True:
-            # if 4>3:
-            #     return 'finished'
-            # elif 3<5:
-            #     return 'ready'
 
             if self.preempt_requested():
-                    rospy.loginfo("preempt triggered")
-                    return 'preempted'
+                rospy.loginfo("preempt triggered")
+                return 'preempted'
+            
+            rospy.loginfo("Grasping object...")
+
+            # TODO: service to grasp the obejct
+            rospy.sleep(5) # simulating grasping
+
+            rospy.loginfo("Grasped object")
+
+            # set this flag to true so that reachy will return the object to home and not approach in Approach state
+            self.mo.return_object = True
 
             self.rate.sleep()
+
+            return 'reachyHome'
 
 # define state Grasp. This is actually moving the gripper to hold the cube
 class MoveToAprilTagHome(smach.State):
@@ -198,18 +206,50 @@ class MoveToAprilTagHome(smach.State):
         self._mutex = Lock()
         self.mo = mo
 
+
     def execute(self, userdata):
         rospy.loginfo("Executing GRASP State")
-        while True:
-            if 4>3:
-                return 'finished'
-            elif 3<5:
-                return 'ready'
 
+        self.current_apriltagHome = self.mo.apriltag_data[self.mo.apriltag_first_elem]
+        self.apriltagHomePose = Pose()
+        self.apriltagHomePose.position.x = self.current_apriltagHome['position']['x']
+        self.apriltagHomePose.position.y = self.current_apriltagHome['position']['y']
+        self.apriltagHomePose.position.z = self.current_apriltagHome['position']['z']
+        q = quaternion_from_euler(0.0, -math.pi*0.5, 0.0)
+        self.apriltagHomePose.orientation.x = q[0]
+        self.apriltagHomePose.orientation.y = q[1]
+        self.apriltagHomePose.orientation.z = q[2]
+        self.apriltagHomePose.orientation.w = q[3]
+
+        while True:
+            
             if self.preempt_requested():
                 rospy.loginfo("preempt triggered")
                 return 'preempted'
 
+            #TODO: reads the first element from the self.apriltag_home_list (X)
+            #TODO: perform the move. if successfully, pop that off the list. 
+            #TODO: in the reachyhome, if the list is not empty,it'll continue. If not, it'll relax
+
+            self.mo.approach_pose = self.apriltagHomePose
+            #TODO: Move the arm to the ready pose and send it to movegroup
+            rospy.loginfo(f"MOVING THE ARM TO {self.mo.apriltag_first_elem} POSITION...")
+
+            result = self.mo.goToPose(self.apriltagHomePose)
+
+            rospy.loginfo(f"MOVED THE ARM TO {self.mo.apriltag_first_elem} POSITION")
+            
+            self.rate.sleep()
+
+            if result == 3:
+                # if self.mo.return_object:
+                #     self.mo.return_object = False
+                #     return 'apriltagHome'
+                # else: 
+                #     return 'approach'
+                return 'release'
+
+            
             self.rate.sleep()
 
 # define state Grasp. This is actually moving the gripper to hold the cube
@@ -217,7 +257,8 @@ class MoveToReachyHome(smach.State):
     def __init__(self, mo):
         smach.State.__init__(self, outcomes=['approach',
                                              'rest',
-                                             'preempted'])
+                                             'preempted',
+                                             'apriltagHome'])
         self.rate = rospy.Rate(RATE) # 10hz
         self._mutex = Lock()
         self.flag = True
@@ -254,7 +295,16 @@ class MoveToReachyHome(smach.State):
             self.rate.sleep()
 
             if result == 3:
-                return 'approach'
+                if len(self.mo.apriltag_home_list) == 0: #finished everything
+                    rospy.loginfo("finished everything")
+                    return 'rest'
+                if self.mo.return_object:
+                    self.mo.return_object = False
+                    return 'apriltagHome'
+                else: 
+                    return 'approach'
+
+
 
 # define state Rest
 class Rest(smach.State):
@@ -285,7 +335,7 @@ class Rest(smach.State):
         rospy.loginfo("Executing REST State")
         while True:
 
-            #TODO: Move the robot back to arm rest position
+            #TODO: Fix this bug. Doesn't rest and errors out
             rospy.wait_for_service('relax')
             reachyRelax = rospy.ServiceProxy('relax', Relax)
 
@@ -311,16 +361,29 @@ class Release(smach.State):
     def execute(self, userdata):
         rospy.loginfo("Executing GRASP State")
         while True:
-            if 4>3:
-                return 'finished'
-            elif 3<5:
-                return 'ready'
-
+            
             if self.preempt_requested():
                     rospy.loginfo("preempt triggered")
                     return 'preempted'
 
+            rospy.loginfo("Releasing object...")
+
+            # TODO: service to release the object
+            rospy.sleep(5) # simulating releasing
+
+            rospy.loginfo("Released object")
+
+            # set this flag to true so that reachy will return the object to home and not approach in Approach state
+            # self.mo.return_object = True
+
+            # pop out the apriltag list
+            self.mo.apriltag_home_list.pop(0)
+            print(f'remaining apriltag {self.mo.apriltag_home_list.pop(0)}')
+
             self.rate.sleep()
+
+            return 'reachyHome'
+
 
 
 # main
@@ -356,7 +419,8 @@ def main():
         smach.StateMachine.add('MOVETOREACHYHOME', MoveToReachyHome(move_interface_object), 
                                transitions={'approach':'APPROACH',
                                             'rest':'REST',
-                                            'preempted': 'exit'})
+                                            'preempted': 'exit',
+                                            'apriltagHome' : 'MOVETOAPRILTAGHOME'})
 
         smach.StateMachine.add('APPROACH', Approach(move_interface_object), 
                                transitions={'approach':'APPROACH',
@@ -376,7 +440,7 @@ def main():
                                 # remapping={'extend_in':'move_interface_object',
                                 #             'extend_out':'move_interface_object'})
         smach.StateMachine.add('GRASP', Grasp(move_interface_object), 
-                               transitions={'apriltagHome' : 'MOVETOAPRILTAGHOME',
+                               transitions={'reachyHome' : 'MOVETOREACHYHOME',
                                             'preempted': 'exit'})
                                 # remapping={'grasp_in':'move_interface_object',
                                 #             'grasp_out':'move_interface_object'})

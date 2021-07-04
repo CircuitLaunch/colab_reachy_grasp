@@ -21,7 +21,7 @@ from moveit_commander.conversions import pose_to_list
 from threading import Lock, Thread
 import pdb
 from colab_reachy_control.msg import Telemetry
-
+import json
 ## END_SUB_TUTORIAL
 
 
@@ -130,7 +130,7 @@ class MoveGroupPythonInterfaceTutorial(object):
         #   print(move_group.get_current_joint_values()[i])
 
         # Misc variables
-        self.box_name = 'sdf'
+        self.box_name = ''
         self.robot = robot
         self.scene = scene
         self.move_group = move_group
@@ -157,6 +157,7 @@ class MoveGroupPythonInterfaceTutorial(object):
         self.restPose.orientation.z = q[2]
         self.restPose.orientation.w = q[3]
 
+        self._read_apriltag()
         
         # self.grasping_thread = Thread(target=self.grasping_state_loop)
         # self.grasping_thread.start()
@@ -193,12 +194,19 @@ class MoveGroupPythonInterfaceTutorial(object):
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
             rate.sleep()
 
-
+    def _read_apriltag(self):
+        '''
+        sets fields apriltag data that can be used in reachy_fsm
+        '''
+        f = open('../config/apriltag_home.json',"r")
+        self.apriltag_data = json.loads(f.read())
+        self.apriltag_home_list = list(self.apriltag_data.keys())
+        self.apriltag_first_elem = self.apriltag_home_list[0]
 
     def lookup_tf(self):
         rate = rospy.Rate(5.0)
         try:
-            self.trans = self.tfBuffer.lookup_transform('pedestal', 'apriltag_5',rospy.Time(0))
+            self.trans = self.tfBuffer.lookup_transform('pedestal', self.apriltag_first_elem,rospy.Time(0))
             cube_pose = geometry_msgs.msg.Pose()
             cube_pose.position = self.trans.transform.translation
             cube_pose.orientation = self.trans.transform.rotation
@@ -238,6 +246,7 @@ class MoveGroupPythonInterfaceTutorial(object):
 
         self.trajectory_in_progress = False
 
+        self.return_object = False
         # TODO: implement some way to trigger grasping_state_loop() in a new thread
         #       from a state machine?!?
 

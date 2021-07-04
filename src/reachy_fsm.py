@@ -148,7 +148,7 @@ class Rest(smach.State):
 # define state Approach
 class Approach(smach.State):
     def __init__(self, mo):
-        smach.State.__init__(self, outcomes=['target_changed',
+        smach.State.__init__(self, outcomes=['approach',
                                              'target_locked',
                                              'reachyHome',
                                              'preempted'])
@@ -193,8 +193,8 @@ class Approach(smach.State):
         # rospy.loginfo("printing out local approach pose")
         # rospy.loginfo(local_approach_pose)
         self.mo.lookup_tf()
-        rospy.loginfo("TEST")
-        rospy.loginfo(self.mo.approach_pose)
+        # rospy.loginfo("TEST")
+        # rospy.loginfo(self.mo.approach_pose)
         local_approach_pose = geometry_msgs.msg.Pose()
 
         #TODO: 1. Find if there's a cube in sight
@@ -209,28 +209,39 @@ class Approach(smach.State):
             # local_approach_pose = copy.deepcopy(self.approach_pose)
 
             # if trj is not in progress, go to the local_approach pose(which is set to be the same as approach pose at init) 
-            if not self.mo.trajectory_in_progress:
-                local_approach_pose = copy.deepcopy(self.mo.approach_pose)
-                # rospy.loginfo(local_approach_pose)
-                self.mo.go_to_pose(local_approach_pose)
+            # if not self.mo.trajectory_in_progress:
+            local_approach_pose = copy.deepcopy(self.mo.approach_pose)
+            # rospy.loginfo(local_approach_pose)
+            result = self.mo.go_to_pose(local_approach_pose)
+            if result == 0: # successful
+                rospy.loginfo("successfully moved to goal. changing to extend" )
+                return 'target_locked'
+            elif result == 1: # no plan
+                rospy.loginfo("couldnt find a plan. attempting to find a plan again..")
+                # return "approach"
+                continue
+            elif result == 3:
+                rospy.loginfo("target changed. going to approach state again")
+                # return "approach"
+                continue
+            elif result == 2: # error
+                rospy.loginfo("error in actuators")
+                return "preempt"
                 # local_approach_pose = copy.deepcopy(self.approach_pose)
                 # rospy.loginfo("printing out local approach pose")
                 # rospy.loginfo(local_approach_pose)
-            else:
-                if self.mo.distance(self.mo.approach_pose, local_approach_pose) <= self.mo.min_approach_error:
-                    rospy.loginfo("target has moved. aborting current trj and approaching new goal")
-                    # abort current trajectory
-                    self.mo.abort_trajectory()
-                    # trigger new trajectory
-                    local_approach_pose = copy.deepcopy(self.mo.approach_pose)
-                    self.mo.go_to_pose(local_approach_pose)
+            # else:
+            # if self.mo.distance(self.mo.approach_pose, local_approach_pose) <= self.mo.min_approach_error:
+            #     rospy.loginfo("target has moved. aborting current trj and approaching new goal")
+            #     # abort current trajectory
+            #     self.mo.abort_trajectory()
+            #     # trigger new trajectory
+            #     local_approach_pose = copy.deepcopy(self.mo.approach_pose)
+            #     self.mo.go_to_pose(local_approach_pose)
 
+            # TODO: Final check if the final goal is within threshold. if not, goto appraoch state again
             # check if the arm is within the threshold which means it's near the goal
-            if self.mo.distance(self.mo.current_pose, local_approach_pose) <= self.mo.min_approach_error:
-                # approach_pose_attained = True
-                self.trajectory_in_progress = False
-                rospy.loginfo("Approach succe")
-                return 'target_locked' # move to extend state
+            
             
 
             # if rospy.get_time() - self.time > 120:
@@ -306,7 +317,7 @@ class Approach(smach.State):
 # define state Extend. 
 class Extend(smach.State):
     def __init__(self, mo):
-        smach.State.__init__(self, outcomes=['target_changed',
+        smach.State.__init__(self, outcomes=['approach',
                                              'target_locked',
                                              'preempted',
                                              'reachyHome'])
@@ -467,7 +478,7 @@ def main():
                                             'preempted': 'exit'})
 
         smach.StateMachine.add('APPROACH', Approach(move_interface_object), 
-                               transitions={'target_changed':'APPROACH',
+                               transitions={'approach':'APPROACH',
                                             'target_locked':'EXTEND',
                                             'reachyHome':'MOVETOREACHYHOME',
                                             'preempted': 'exit'})
@@ -475,7 +486,7 @@ def main():
                                 #             'approach_in':'move_interface_object'})
                                             
         smach.StateMachine.add('EXTEND', Extend(move_interface_object), 
-                               transitions={'target_changed':'APPROACH',
+                               transitions={'approach':'APPROACH',
                                             'target_locked':'GRASP',
                                             'reachyHome':'MOVETOREACHYHOME',
                                             'preempted': 'exit'})

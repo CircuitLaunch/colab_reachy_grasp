@@ -19,6 +19,8 @@ from std_msgs.msg import String
 from moveit_commander.conversions import pose_to_list
 from threading import Lock, Thread
 import pdb
+from colab_reachy_control.msg import Telemetry
+
 ## END_SUB_TUTORIAL
 
 
@@ -141,6 +143,7 @@ class MoveGroupPythonInterfaceTutorial(object):
         self.spin_rate = rospy.Rate(30)
         self.flag1 = True
         self.trans = None
+        self.hertz = rospy.Rate(30)
         self.grasping_state_init()
         # self.grasping_thread = Thread(target=self.grasping_state_loop)
         # self.grasping_thread.start()
@@ -203,6 +206,7 @@ class MoveGroupPythonInterfaceTutorial(object):
         self._grasp_z_offset = rospy.get_param("GRASP_Z_OFFSET")
         
 
+        telemSub = rospy.Subscriber('dxl_telemetry', Telemetry, self.setTelemetry)
         self._settings_mutex = Lock()
 
         self._grip_load = 0.0
@@ -499,7 +503,28 @@ class MoveGroupPythonInterfaceTutorial(object):
                     self.current_group.stop()
                     result = 2
                     self.isExecuting = False
+                # check if cube pose has changed by a lot. if so abort trj
+                rospy.loginfo("distance: ")
+                rospy.loginfo(self.distance(self.approach_pose, pose))
+                if self.distance(self.approach_pose, pose) > self.min_approach_error:
+                    rospy.loginfo("target has moved. aborting current trj.")
+                    # abort current trajectory
+                    self.abort_trajectory()
+                    # trigger new trajectory
+                    self.isExecuting = False
+                    result = 3
+                    # local_approach_pose = copy.deepcopy(self.mo.approach_pose)
+                    # self.mo.go_to_pose(local_approach_pose)
+
             execThread.join()
+
+            # check if the goal is within tolerance
+            if self.distance(self.current_pose, pose) <= self.min_approach_error:
+                rospy.loginfo("Approach success")
+                result = 1 # move to extend state
+            else:
+                rospy.loginfo("trj successful but not within threshold")
+                result = 4
         else:
             self.hertz.sleep()
 
@@ -508,6 +533,21 @@ class MoveGroupPythonInterfaceTutorial(object):
     def trajectoryLoop(self, group, plan):
         group.execute(plan, wait = True)
         self.isExecuting = False
+
+    def setTelemetry(self, telem: Telemetry):
+        dxlIds = telem.dxl_ids
+        errorBits = telem.error_bits
+        errorIds = []
+        self.errorIds = None
+        thereWereErrors = False
+        for i in range(0, len(dxlIds)):
+            if errorBits[i] != 0:
+                thereWereErrors = True
+                errorIds.append(dxlIds[i])
+        if thereWereErrors:
+            self.errorIds = errorIds
+
+
 
     def abort_trajectory(self):
         self.move_group.stop()

@@ -211,7 +211,8 @@ class MoveGroupPythonInterfaceTutorial(object):
             cube_pose.position = self.trans.transform.translation
             cube_pose.orientation = self.trans.transform.rotation
             self.on_cube_detected(cube_pose)
-        
+            self.apriltag_first_elem = self.apriltag_home_list[0]
+
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
             rate.sleep()
 

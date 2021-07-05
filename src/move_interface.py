@@ -206,12 +206,13 @@ class MoveGroupPythonInterfaceTutorial(object):
     def lookup_tf(self):
         rate = rospy.Rate(5.0)
         try:
+            rospy.loginfo(f'************UPDATING apriltag first elem: {self.apriltag_first_elem}')
             self.trans = self.tfBuffer.lookup_transform('pedestal', self.apriltag_first_elem,rospy.Time(0))
             cube_pose = geometry_msgs.msg.Pose()
             cube_pose.position = self.trans.transform.translation
             cube_pose.orientation = self.trans.transform.rotation
             self.on_cube_detected(cube_pose)
-            self.apriltag_first_elem = self.apriltag_home_list[0]
+            # self.apriltag_first_elem = self.apriltag_home_list[0]
 
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
             rate.sleep()
@@ -511,6 +512,7 @@ class MoveGroupPythonInterfaceTutorial(object):
     #         # local_approach_pose = copy.deepcopy(self.approach_pose)
     #         return False
     def goToPose(self, pose):
+        # error compensation here
         self.move_group.set_pose_target(pose)
         plan = self.move_group.plan()
         plan_status = plan[0]
@@ -529,8 +531,8 @@ class MoveGroupPythonInterfaceTutorial(object):
                     result = 2
                     self.isExecuting = False
                 # check if cube pose has changed by a lot. if so abort trj
-                rospy.loginfo("distance: ")
-                rospy.loginfo(self.distance(self.approach_pose, pose))
+                # rospy.loginfo("distance: ")
+                # rospy.loginfo(self.distance(self.approach_pose, pose))
                 
                 if self.distance(self.approach_pose, pose) > self.min_approach_error:
                     rospy.loginfo("target has moved. aborting current trj.")
@@ -543,8 +545,8 @@ class MoveGroupPythonInterfaceTutorial(object):
             execThread.join()
 
             # check if the goal is within tolerance
-            rospy.loginfo("checking goal threshold")
-            rospy.loginfo(self.distance(self.current_pose, pose))
+            # rospy.loginfo("checking goal threshold")
+            # rospy.loginfo(self.distance(self.current_pose, pose))
             if self.distance(self.current_pose, pose) <= self.min_approach_error:
                 rospy.loginfo("Approach success")
                 result = 3 # move to extend state
@@ -664,8 +666,8 @@ class MoveGroupPythonInterfaceTutorial(object):
                             local_approach_pose = copy.deepcopy(self.approach_pose)
                             self.go_to_pose(local_approach_pose)
                     # Repeat move to approach pose while distance between current pose and approach pose > threshold and not abort
-                    rospy.loginfo("DISTANCE: ")
-                    rospy.loginfo(self.distance(self.current_pose, local_approach_pose))
+                    # rospy.loginfo("DISTANCE: ")
+                    # rospy.loginfo(self.distance(self.current_pose, local_approach_pose))
                     if self.distance(self.current_pose, local_approach_pose) <= self.min_approach_error:
                         approach_pose_attained = True
                         self.trajectory_in_progress = False
@@ -700,8 +702,8 @@ class MoveGroupPythonInterfaceTutorial(object):
                     # Else
                     else:
                         # If grasp pose has changed
-                        rospy.loginfo("grasp pose and local grasp pose distance")
-                        rospy.loginfo(self.distance(self.grasp_pose, local_grasp_pose))
+                        # rospy.loginfo("grasp pose and local grasp pose distance")
+                        # rospy.loginfo(self.distance(self.grasp_pose, local_grasp_pose))
                         if self.distance(self.grasp_pose, local_grasp_pose) > self.min_grip_error:
                             # abort current trajectory
                             self.abort_trajectory()
@@ -733,8 +735,8 @@ class MoveGroupPythonInterfaceTutorial(object):
                 # set grasped false
                 local_grasp_flag = False
                 # If grasp pose has changed
-                rospy.loginfo("checking the distance for the grasp")
-                rospy.loginfo(self.distance(self.grasp_pose, local_grasp_pose))
+                # rospy.loginfo("checking the distance for the grasp")
+                # rospy.loginfo(self.distance(self.grasp_pose, local_grasp_pose))
                 if self.distance(self.grasp_pose, local_grasp_pose) > self.min_grip_error:
                     break
                 # set grasped true

@@ -16,6 +16,7 @@ import copy
 import move_interface
 import geometry_msgs.msg
 
+SIM = True
 RATE = 10
 # define state Idle. 
 class Idle(smach.State):
@@ -69,14 +70,15 @@ class Approach(smach.State):
         self.pose = None
         self.a = True
         self.reachyRelax = rospy.ServiceProxy('relax', Relax)
+        cubeSub = rospy.Subscriber('cubePose', PoseStamped, self._cube_callback)
         #TODO: the move_interface object should be passed among extend and grasp 
 
-    def _cube1_callback(self, msg):
+    def _cube_callback(self, msg):
         self.mo.lookup_tf()
 
     def execute(self, userdata):
         rospy.loginfo("Executing APPROACH State")
-        cubeSub = rospy.Subscriber('cubePose', PoseStamped, self._cube1_callback)
+        # cubeSub = rospy.Subscriber('cubePose', PoseStamped, self._cube_callback)
         # if self.flag:       
         #     self.flag = False
         #     self.time = rospy.get_time()
@@ -101,12 +103,16 @@ class Approach(smach.State):
             
             #TODO: UNCOMMENT AFTER EXPERIMENT
             rospy.loginfo(f"APPROACH POSE for {self.mo.apriltag_first_elem} object: {self.mo.approach_pose}")
-            # result = self.mo.goToPose(local_approach_pose)
+            rospy.loginfo(local_approach_pose)
+            if not SIM:
+                result = self.mo.goToPose(local_approach_pose)
+
             rospy.loginfo("SIMULATING APPROACH")
             rospy.loginfo(f"-----APPROACHING {self.mo.apriltag_first_elem} -----")
-            rospy.sleep(5)
             #TODO: DELTE THE BELOW. ONLY FOR SIMULATING
-            result = 3
+            if SIM:
+                rospy.sleep(5)
+                result = 3
 
             if result == 0: # no plan
                 rospy.loginfo("couldnt find a plan. attempting to find a plan again...")
@@ -146,6 +152,8 @@ class Extend(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo("Executing EXTEND State")
+
+        local_approach_pose = geometry_msgs.msg.Pose()
         while True:
 
             if self.preempt_requested():
@@ -160,12 +168,15 @@ class Extend(smach.State):
             # rospy.loginfo(local_approach_pose)
 
             #TODO: UNCOMMENT AFTER EXPERIMENT
-            # result = self.mo.goToPose(local_approach_pose)
+            if not SIM:
+                result = self.mo.goToPose(local_approach_pose)
+            rospy.loginfo(local_approach_pose)
             rospy.loginfo("SIMULATING EXTEND")
             rospy.loginfo(f"-----EXTENDING {self.mo.apriltag_first_elem} -----")
-            rospy.sleep(7)
+            # rospy.sleep(7)
             #TODO: DELETE BELOW. ONLY FOR SIMULATION
-            result = 3
+            if SIM:
+                result = 3
 
             if result == 0: # no plan
                 rospy.loginfo("couldnt find a plan. attempting to find a plan again...")
@@ -210,7 +221,7 @@ class Grasp(smach.State):
             rospy.loginfo(f"Grasping {self.mo.apriltag_first_elem} object...")
 
             # TODO: service to grasp the obejct
-            rospy.sleep(7) # simulating grasping
+            # rospy.sleep(7) # simulating grasping
 
             rospy.loginfo(f"Grasped {self.mo.apriltag_first_elem} object")
 
@@ -264,11 +275,13 @@ class MoveToAprilTagHome(smach.State):
             rospy.loginfo(f"MOVING THE ARM TO {self.mo.apriltag_first_elem} HOME POSITION...")
             
             #TODO: UNCOMMENT AFTER EXPERIMENT
-            # result = self.mo.goToPose(self.apriltagHomePose)
+            if not SIM:
+                result = self.mo.goToPose(self.apriltagHomePose)
             rospy.loginfo("SIMULATING MOVE APRILTAG HOME")
-            rospy.sleep(7)
+            # rospy.sleep(7)
             #TODO : DELETE BELOW. ONLY FOR SIMULATION
-            result = 3
+            if SIM:
+                result = 3
 
             rospy.loginfo(f"MOVED THE ARM TO {self.mo.apriltag_first_elem} HOME POSITION")
             
@@ -328,10 +341,12 @@ class MoveToReachyHome(smach.State):
 
 
             #TODO: UNCOMMENT AFTER EXPERIMENT
-            # result = self.mo.goToPose(self.readyPose)
+            if not SIM:
+                result = self.mo.goToPose(self.readyPose)
             rospy.loginfo("SIMULATING MOVE REACHY HOME")
-            rospy.sleep(7)
-            result = 3
+            if SIM:
+                result = 3
+                rospy.sleep(7)
 
             rospy.loginfo("MOVED THE ARM TO HOME POSITION")
             
@@ -383,13 +398,13 @@ class Rest(smach.State):
         rospy.loginfo("Executing REST State")
         while True:
 
-            #TODO: Fix this bug. Doesn't rest and errors out
-            rospy.wait_for_service('relax')
-            reachyRelax = rospy.ServiceProxy('relax', Relax)
+            # #TODO: Fix this bug. Doesn't rest and errors out
+            # rospy.wait_for_service('relax')
+            # reachyRelax = rospy.ServiceProxy('relax', Relax)
 
-            relaxReq = RelaxRequest()
-            relaxReq.side = "left"
-            result = reachyRelax(relaxReq)
+            # relaxReq = RelaxRequest()
+            # relaxReq.side = "left"
+            # result = reachyRelax(relaxReq)
 
             if self.preempt_requested():
                 rospy.loginfo("preempt triggered")
@@ -428,9 +443,11 @@ class Release(smach.State):
             # rospy.loginfo(self.mo.apriltag_home_list)
             # rospy.loginfo("popping")
             self.mo.apriltag_home_list.pop(0)
-            # self.mo.apriltag_first_elem = self.mo.apriltag_home_list[0]
-            rospy.loginfo(f'Remaining objects: {self.mo.apriltag_home_list}')
+            if len(self.mo.apriltag_home_list) != 0:
+                self.mo.apriltag_first_elem = self.mo.apriltag_home_list[0]
             
+            rospy.loginfo(f'Remaining objects: {self.mo.apriltag_home_list}')
+            rospy.loginfo(f"next apriltag: {self.mo.apriltag_first_elem}")
             # print(f'remaining apriltag {self.mo.apriltag_home_list.pop(0)}')
 
             self.rate.sleep()

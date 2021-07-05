@@ -70,11 +70,11 @@ class Approach(smach.State):
         self.pose = None
         self.a = True
         self.reachyRelax = rospy.ServiceProxy('relax', Relax)
-        cubeSub = rospy.Subscriber('cubePose', PoseStamped, self._cube_callback)
+        # cubeSub = rospy.Subscriber('cubePose', PoseStamped, self._cube_callback)
         #TODO: the move_interface object should be passed among extend and grasp 
 
-    def _cube_callback(self, msg):
-        self.mo.lookup_tf()
+    # def _cube_callback(self, msg):
+    #     self.mo.lookup_tf()
 
     def execute(self, userdata):
         rospy.loginfo("Executing APPROACH State")
@@ -95,6 +95,8 @@ class Approach(smach.State):
                 relaxReq.side = "left"
                 self.reachyRelax(relaxReq)
                 # return 'relax'
+
+            self.mo.lookup_tf()
 
             self.rate.sleep()
             
@@ -162,6 +164,8 @@ class Extend(smach.State):
                 relaxReq.side = "left"
                 self.reachyRelax(relaxReq)
 
+            self.mo.lookup_tf()
+
             self.rate.sleep()
 
             local_approach_pose = copy.deepcopy(self.mo.grasp_pose)
@@ -218,6 +222,8 @@ class Grasp(smach.State):
                 rospy.loginfo("preempt triggered")
                 return 'preempted'
             
+            self.mo.lookup_tf()
+
             rospy.loginfo(f"Grasping {self.mo.apriltag_first_elem} object...")
 
             # TODO: service to grasp the obejct
@@ -261,6 +267,8 @@ class MoveToAprilTagHome(smach.State):
             if self.preempt_requested():
                 rospy.loginfo("preempt triggered")
                 return 'preempted'
+
+            self.mo.lookup_tf()
 
             #TODO: reads the first element from the self.apriltag_home_list (X)
             #TODO: perform the move. if successfully, pop that off the list. 
@@ -334,7 +342,7 @@ class MoveToReachyHome(smach.State):
             if self.preempt_requested():
                 rospy.loginfo("preempt triggered")
                 return 'preempted'
-            
+                        
             self.mo.approach_pose = self.readyPose
             #TODO: Move the arm to the ready pose and send it to movegroup
             rospy.loginfo("MOVING THE ARM TO HOME POSITION...")

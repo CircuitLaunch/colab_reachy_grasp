@@ -268,7 +268,7 @@ class MoveToReachyHome(smach.State):
         self.readyPose = Pose()
         self.readyPose.position.x = 0.1
         self.readyPose.position.y = 0.2 
-        self.readyPose.position.z = 0.65
+        self.readyPose.position.z = 0.75
         q = quaternion_from_euler(0.0, -math.pi*0.5, 0.0)
         self.readyPose.orientation.x = q[0]
         self.readyPose.orientation.y = q[1]

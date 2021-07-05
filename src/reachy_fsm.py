@@ -100,6 +100,7 @@ class Approach(smach.State):
             # rospy.loginfo(local_approach_pose)
             
             #TODO: UNCOMMENT AFTER EXPERIMENT
+            rospy.loginfo(f"APPROACH POSE for {self.mo.apriltag_first_elem} object: {self.mo.approach_pose}")
             # result = self.mo.goToPose(local_approach_pose)
             rospy.loginfo("SIMULATING APPROACH")
             rospy.loginfo(f"-----APPROACHING {self.mo.apriltag_first_elem} -----")
@@ -256,6 +257,8 @@ class MoveToAprilTagHome(smach.State):
 
             #TODO: UNCOMMENT AFTER EXPERIMENT
             self.mo.approach_pose = self.apriltagHomePose
+
+            rospy.loginfo(f"APRILTAG HOME POSE for {self.mo.apriltag_first_elem} object: {self.apriltagHomePose}")
 
             #TODO: Move the arm to the ready pose and send it to movegroup
             rospy.loginfo(f"MOVING THE ARM TO {self.mo.apriltag_first_elem} HOME POSITION...")

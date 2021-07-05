@@ -16,7 +16,7 @@ import copy
 import move_interface
 import geometry_msgs.msg
 
-SIM = True
+SIM = False
 RATE = 10
 # define state Idle. 
 class Idle(smach.State):
@@ -83,7 +83,7 @@ class Approach(smach.State):
         #     self.flag = False
         #     self.time = rospy.get_time()
             
-        self.mo.lookup_tf()
+        # self.mo.lookup_tf()
         
         local_approach_pose = geometry_msgs.msg.Pose()
 

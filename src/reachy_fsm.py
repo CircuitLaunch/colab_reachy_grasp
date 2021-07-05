@@ -91,21 +91,23 @@ class Approach(smach.State):
                 self.reachyRelax(relaxReq)
                 # return 'relax'
 
-            if self.mo.lookup:
-                self.mo.lookup_tf()
+            # if self.mo.lookup:
+            self.mo.lookup_tf()
 
             self.rate.sleep()
 
             if self.mo.get_cube:
                 local_approach_pose = copy.deepcopy(self.mo.grasp_approach_pose)
+                rospy.loginfo(f"GRASPING APPROACH POSE for {self.mo.apriltag_first_elem} object: {local_approach_pose}")
+
             else:
                 local_approach_pose = copy.deepcopy(self.mo.release_approach_pose)
+                rospy.loginfo(f"RELEASE APPROACH POSE for {self.mo.apriltag_first_elem} object: {local_approach_pose}")
+
 
             # rospy.loginfo(local_approach_pose)
             
             #TODO: UNCOMMENT AFTER EXPERIMENT
-            rospy.loginfo(f"APPROACH POSE for {self.mo.apriltag_first_elem} object: {self.mo.grasp_approach_pose}")
-            rospy.loginfo(local_approach_pose)
             if not SIM:
                 result = self.mo.goToPose(local_approach_pose)
 
@@ -130,19 +132,26 @@ class Approach(smach.State):
                 return "relax"
             elif result == 3: # successful
                 self.mo.lookup = False
-                rospy.loginfo("successfully moved to goal. changing to extend" )
-                rospy.loginfo("------------------------------")
-                if self.get_cube:
+
+                if self.mo.get_cube:
                     if self.mo.object_in_hand:
-                        # self.get_cube = False
-                        return 'reachy_home'
+                        rospy.loginfo("Have cube in hand. Moving to Reachy Home." )
+                        rospy.loginfo("------------------------------")
+                        return 'reachyHome'
                     else:
+                        rospy.loginfo("Don't have cube in hand. Moving to extend (GRASPING CUBE)" )
+                        rospy.loginfo("------------------------------")
                         return 'target_locked'
                 else:
                     if self.mo.object_in_hand:
+                        rospy.loginfo("Have cube in hand. Moving to extend (RELEASING CUBE)" )
+                        rospy.loginfo("------------------------------")                        
                         return 'target_locked'
                     else:
-                        return 'reachy_home'
+                        rospy.loginfo("Don't have cube in hand. Moving to Reachy Home" )
+                        rospy.loginfo("------------------------------")
+                        return 'reachyHome'
+
             else: # successfully moved but not within tolerance #TODO: This is a "minor" issue that requires calibration
                 rospy.loginfo("successfully moved to goal. changing to extend" )
                 rospy.loginfo("------------------------------")
@@ -187,12 +196,14 @@ class Extend(smach.State):
                 local_approach_pose = copy.deepcopy(self.mo.grasp_pose)
             else:
                 local_approach_pose = copy.deepcopy(self.mo.release_pose)
-
+            
+            rospy.loginfo(f"EXTEND POSE for {self.mo.apriltag_first_elem} object: {local_approach_pose}")
+           
 
             #TODO: UNCOMMENT AFTER EXPERIMENT
             if not SIM:
                 result = self.mo.goToPose(local_approach_pose)
-            rospy.loginfo(local_approach_pose)
+            # rospy.loginfo(local_approach_pose)
             rospy.loginfo("SIMULATING EXTEND")
             rospy.loginfo(f"-----EXTENDING {self.mo.apriltag_first_elem} -----")
             # rospy.sleep(7)
@@ -203,27 +214,35 @@ class Extend(smach.State):
             if result == 0: # no plan
                 rospy.loginfo("couldnt find a plan. attempting to find a plan again...")
                 rospy.loginfo("------------------------------")
-                continue
+                self.mo.lookup = True
+                return 'approach'
+                
             elif result == 1: # target changed
                 rospy.loginfo("target changed. attempting to find a plan again...")
                 rospy.loginfo("------------------------------")
-                continue
+                self.mo.lookup = True
+                return 'approach'
+
             elif result == 2: # error
                 rospy.loginfo("error in actuators")
                 rospy.loginfo("------------------------------")
                 return "relax"
+                
             elif result == 3: # successful
-                rospy.loginfo("successfully moved to goal. changing to extend" )
-                rospy.loginfo("------------------------------")
+                
                 if self.mo.get_cube:
+                    rospy.loginfo("successfully moved to goal. changing to extend" )
+                    rospy.loginfo("------------------------------")
                     return 'target_locked'
                 else:
+                    rospy.loginfo("successfully moved to goal. changing to Release" )
+                    rospy.loginfo("------------------------------")
                     return 'release'
             else: # successfully moved but not within tolerance #TODO: This is a "minor" issue that requires calibration
                 rospy.loginfo("successfully moved to goal. changing to extend" )
                 rospy.loginfo("------------------------------")
-                continue
-        
+                self.mo.lookup = True
+                return 'approach'
             
 
 # define state Grasp. This is actually moving the gripper to hold the cube
@@ -429,12 +448,13 @@ class Grasp(smach.State):
                 rospy.loginfo("preempt triggered")
                 return 'preempted'
             
-            self.mo.lookup_tf()
+            # self.mo.lookup_tf()
 
             rospy.loginfo(f"Grasping {self.mo.apriltag_first_elem} object...")
 
             # TODO: service to grasp the obejct
-            # rospy.sleep(7) # simulating grasping
+            if SIM:
+                rospy.sleep(7) # simulating grasping
 
             rospy.loginfo(f"Grasped {self.mo.apriltag_first_elem} object")
 
@@ -466,7 +486,8 @@ class Release(smach.State):
             rospy.loginfo(f"Releasing {self.mo.apriltag_first_elem} object...")
 
             # TODO: service to release the object
-            rospy.sleep(7) # simulating releasing
+            if SIM:
+                rospy.sleep(7) # simulating releasing
             self.mo.object_in_hand = False
 
             rospy.loginfo(f"Released {self.mo.apriltag_first_elem} object")

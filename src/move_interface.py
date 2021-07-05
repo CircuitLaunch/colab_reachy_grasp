@@ -435,7 +435,7 @@ class MoveGroupPythonInterfaceTutorial(object):
             cube_pose = geometry_msgs.msg.Pose()
             cube_pose.position = self.trans.transform.translation
             cube_pose.orientation = self.trans.transform.rotation
-            self.calc_grasp_pose(cube_pose)
+            self.calc_grasp_poses(cube_pose)
 
             self.find_current_apriltag_home_pose()
             self.calc_release_poses(self.apriltagHomePose)
@@ -551,6 +551,7 @@ class MoveGroupPythonInterfaceTutorial(object):
                     self.move_group.stop()
                     result = 2
                     self.isExecuting = False
+                    rospy.loginfo(self.current_pose)
                 # check if cube pose has changed by a lot. if so abort trj
                 # rospy.loginfo("distance: ")
                 # rospy.loginfo(self.distance(self.grasp_approach_pose, pose))

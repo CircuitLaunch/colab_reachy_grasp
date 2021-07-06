@@ -509,6 +509,9 @@ class MoveGroupPythonInterfaceTutorial(object):
         transformReq.in_pose = rawPose
         pose, inBounds = self.compensate(transformReq)
 
+        if not inBounds:
+            rospy.loginfo(f'goal pose out of workspace: {rawPose}')
+
         self.move_group.set_pose_target(pose)
         plan = self.move_group.plan()
         plan_status = plan[0]

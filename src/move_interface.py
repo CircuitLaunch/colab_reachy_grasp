@@ -21,7 +21,9 @@ from moveit_commander.conversions import pose_to_list
 from threading import Lock, Thread
 import pdb
 from colab_reachy_control.msg import Telemetry
+from colab_reachy_calibrate.srv import TransformPose
 import json
+
 ## END_SUB_TUTORIAL
 
 
@@ -104,6 +106,7 @@ class MoveGroupPythonInterfaceTutorial(object):
                                                        queue_size=20)
                                                       # NOTE: Ed's code didn't have /move_group
 
+        self.compensate = rospy.ServiceProxy('compensate', TransformPose)
 
         ## Getting Basic Information
         ## ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -205,7 +208,7 @@ class MoveGroupPythonInterfaceTutorial(object):
         self._grasp_x_offset = rospy.get_param("GRASP_X_OFFSET")
         self._grasp_y_offset = rospy.get_param("GRASP_Y_OFFSET")
         self._grasp_z_offset = rospy.get_param("GRASP_Z_OFFSET")
-        
+
 
         telemSub = rospy.Subscriber('dxl_telemetry', Telemetry, self.setTelemetry)
         self._settings_mutex = Lock()
@@ -279,8 +282,8 @@ class MoveGroupPythonInterfaceTutorial(object):
     def approach_y_offset(self, val):
         with self._settings_mutex:
             self._approach_y_offset = val
-    
-    @property       
+
+    @property
     def approach_z_offset(self):
         local_val = 0
         with self._settings_mutex:
@@ -456,7 +459,7 @@ class MoveGroupPythonInterfaceTutorial(object):
 
         quat = quaternion_from_euler (0.0, -1.57, 0.0)
 
-        best_pose.orientation.x = quat[0]       
+        best_pose.orientation.x = quat[0]
         best_pose.orientation.y = quat[1]
         best_pose.orientation.z = quat[2]
         best_pose.orientation.w = quat[3]
@@ -469,7 +472,7 @@ class MoveGroupPythonInterfaceTutorial(object):
         best_pose = geometry_msgs.msg.Pose()
 
         # TODO: Calculate the grasp pose given the cube pose
-        
+
         # ADDED BY LIAM
         best_pose.position.x = cube_pose.position.x + self.grasp_x_offset
         best_pose.position.y = cube_pose.position.y + self.grasp_y_offset
@@ -477,7 +480,7 @@ class MoveGroupPythonInterfaceTutorial(object):
 
         quat = quaternion_from_euler (0.0, -1.57, 0.0)
 
-        best_pose.orientation.x = quat[0]       
+        best_pose.orientation.x = quat[0]
         best_pose.orientation.y = quat[1]
         best_pose.orientation.z = quat[2]
         best_pose.orientation.w = quat[3]
@@ -522,8 +525,8 @@ class MoveGroupPythonInterfaceTutorial(object):
     #     rospy.loginfo("pose is")
     #     rospy.loginfo(pose)
     #     rospy.loginfo(plan)
-    #     if plan[0]:   
-    #         rospy.loginfo("FOUND PLAN") 
+    #     if plan[0]:
+    #         rospy.loginfo("FOUND PLAN")
     #         self.move_group.execute(plan[1], wait=False)
     #         self.trajectory_in_progress = True
     #         return True
@@ -555,7 +558,7 @@ class MoveGroupPythonInterfaceTutorial(object):
                 # check if cube pose has changed by a lot. if so abort trj
                 # rospy.loginfo("distance: ")
                 # rospy.loginfo(self.distance(self.grasp_approach_pose, pose))
-                
+
                 if self.distance(self.grasp_approach_pose, pose) > self.min_approach_error:
                     rospy.loginfo("target has moved. aborting current trj.")
                     # abort current trajectory
@@ -641,16 +644,16 @@ class MoveGroupPythonInterfaceTutorial(object):
                 local_grasp_approach_pose = geometry_msgs.msg.Pose()
 
                 # TODO: Calculate the grasp pose given the cube pose
-                
+
                 # ADDED BY LIAM
-                local_grasp_approach_pose.position.x = self.grasp_approach_pose.position.x 
-                local_grasp_approach_pose.position.y = self.grasp_approach_pose.position.y 
+                local_grasp_approach_pose.position.x = self.grasp_approach_pose.position.x
+                local_grasp_approach_pose.position.y = self.grasp_approach_pose.position.y
                 local_grasp_approach_pose.position.z = self.grasp_approach_pose.position.z
 
-                local_grasp_approach_pose.orientation.x = self.grasp_approach_pose.orientation.x       
-                local_grasp_approach_pose.orientation.y = self.grasp_approach_pose.orientation.y   
-                local_grasp_approach_pose.orientation.z = self.grasp_approach_pose.orientation.z   
-                local_grasp_approach_pose.orientation.w = self.grasp_approach_pose.orientation.w   
+                local_grasp_approach_pose.orientation.x = self.grasp_approach_pose.orientation.x
+                local_grasp_approach_pose.orientation.y = self.grasp_approach_pose.orientation.y
+                local_grasp_approach_pose.orientation.z = self.grasp_approach_pose.orientation.z
+                local_grasp_approach_pose.orientation.w = self.grasp_approach_pose.orientation.w
 
 
 
@@ -672,10 +675,10 @@ class MoveGroupPythonInterfaceTutorial(object):
                             local_grasp_approach_pose = copy.deepcopy(self.grasp_approach_pose)
                         #     rospy.loginfo("inside if")
                         #     rospy.loginfo(local_grasp_approach_pose)
-                    
+
                         # rospy.loginfo("outside if")
                         # rospy.loginfo(local_grasp_approach_pose)
-                    
+
                     # Else
                     else:
                         # If approach pose has changed
@@ -697,7 +700,7 @@ class MoveGroupPythonInterfaceTutorial(object):
                 rospy.loginfo("Completed approach")
                 # Do move to grasp pose
                 local_grasp_pose = copy.deepcopy(self.grasp_pose)
-                
+
                 rospy.loginfo("STARTING GO TO GOAL")
                 while(True):
                     self.spin_rate.sleep()
@@ -717,7 +720,7 @@ class MoveGroupPythonInterfaceTutorial(object):
                             rospy.loginfo("created the local_grasp_pose")
                             # rospy.loginfo("inside if")
                             # rospy.loginfo(local_grasp_pose)
-                    
+
                         # rospy.loginfo("outside if")
                         # rospy.loginfo(local_grasp_pose)
                     # Else
@@ -736,7 +739,7 @@ class MoveGroupPythonInterfaceTutorial(object):
                 # Repeat move to approach pose and move to grasp pose while distance between current pose and grasp pose > threshold and not abort
                 if grasp_pose_attained:
                     break
-                
+
             local_grasp_pose = copy.deepcopy(self.grasp_pose)
 
             rospy.loginfo("Completed to goal")

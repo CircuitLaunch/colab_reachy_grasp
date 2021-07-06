@@ -11,6 +11,7 @@ from apriltag_ros.msg import AprilTagDetectionArray
 from geometry_msgs.msg import PoseStamped, Pose
 from std_msgs.msg import String
 from colab_reachy_control.srv import Recover, RecoverRequest, Relax, RelaxRequest, Zero, ZeroRequest
+from colab_reachy_calibrate.srv import TransformPose, TransformPoseRequest
 import time
 import copy
 import move_interface
@@ -18,7 +19,7 @@ import geometry_msgs.msg
 
 SIM = False
 RATE = 10
-# define state Idle. 
+# define state Idle.
 class Idle(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['reachyHome',
@@ -35,7 +36,7 @@ class Idle(smach.State):
         rospy.loginfo("IN IDLE CALLBACK")
         with self._mutex:
             self.data = msg.data
-    
+
     def execute(self, userdata):
         rospy.loginfo('Executing IDLE State')
 
@@ -51,10 +52,10 @@ class Idle(smach.State):
             if self.preempt_requested():
                 rospy.loginfo("preempt triggered")
                 return 'preempted'
-                
+
             self.rate.sleep()
 
-       
+
 # define state Approach
 class Approach(smach.State):
     def __init__(self, mo):
@@ -74,12 +75,12 @@ class Approach(smach.State):
     def execute(self, userdata):
         rospy.loginfo("Executing APPROACH State")
         # cubeSub = rospy.Subscriber('cubePose', PoseStamped, self._cube_callback)
-        # if self.flag:       
+        # if self.flag:
         #     self.flag = False
         #     self.time = rospy.get_time()
-            
+
         # self.mo.lookup_tf()
-        
+
         local_approach_pose = geometry_msgs.msg.Pose()
 
         while True:
@@ -104,7 +105,12 @@ class Approach(smach.State):
                 local_approach_pose = copy.deepcopy(self.mo.release_approach_pose)
                 rospy.loginfo(f"RELEASE APPROACH POSE for {self.mo.apriltag_first_elem} object: {local_approach_pose}")
 
-
+            transformPose = TransformPose()
+            transformPose.side = 'left'
+            transformPose.in_pose = local_approach_pose
+            newPose = self.mo.compensate(transformPose)
+            rospy.loginfo(f'true pose: {newPos}')
+            
             #TODO: UNCOMMENT AFTER EXPERIMENT
             if not SIM:
                 result = self.mo.goToPose(local_approach_pose)
@@ -143,7 +149,7 @@ class Approach(smach.State):
                 else:
                     if self.mo.object_in_hand:
                         rospy.loginfo("Have cube in hand. Moving to extend (RELEASING CUBE)" )
-                        rospy.loginfo("------------------------------")                        
+                        rospy.loginfo("------------------------------")
                         return 'target_locked'
                     else:
                         rospy.loginfo("Don't have cube in hand. Moving to Reachy Home" )
@@ -154,10 +160,10 @@ class Approach(smach.State):
                 rospy.loginfo("successfully moved to goal. changing to extend" )
                 rospy.loginfo("------------------------------")
                 continue
-            
 
 
-# define state Extend. 
+
+# define state Extend.
 class Extend(smach.State):
     def __init__(self, mo):
         smach.State.__init__(self, outcomes=['approach',
@@ -189,9 +195,15 @@ class Extend(smach.State):
                 local_approach_pose = copy.deepcopy(self.mo.grasp_pose)
             else:
                 local_approach_pose = copy.deepcopy(self.mo.release_pose)
-            
+
             rospy.loginfo(f"EXTEND POSE for {self.mo.apriltag_first_elem} object: {local_approach_pose}")
-           
+
+
+            transformPose = TransformPose()
+            transformPose.side = 'left'
+            transformPose.in_pose = local_approach_pose
+            newPose = self.mo.compensate(transformPose)
+            rospy.loginfo(f'true pose: {newPos}')
 
             #TODO: UNCOMMENT AFTER EXPERIMENT
             if not SIM:
@@ -210,7 +222,7 @@ class Extend(smach.State):
                 rospy.loginfo("------------------------------")
                 # self.mo.lookup = True
                 return 'approach'
-                
+
             elif result == 1: # target changed
                 rospy.loginfo("target changed. attempting to find a plan again...")
                 rospy.loginfo("------------------------------")
@@ -221,9 +233,9 @@ class Extend(smach.State):
                 rospy.loginfo("error in actuators")
                 rospy.loginfo("------------------------------")
                 return "relax"
-                
+
             elif result == 3: # successful
-                
+
                 if self.mo.get_cube:
                     rospy.loginfo("successfully moved to goal. changing to extend" )
                     rospy.loginfo("------------------------------")
@@ -237,7 +249,7 @@ class Extend(smach.State):
                 rospy.loginfo("------------------------------")
                 # self.mo.lookup = True
                 return 'approach'
-            
+
 
 
 # define state Grasp. This is actually moving the gripper to hold the cube
@@ -252,10 +264,10 @@ class MoveToReachyHome(smach.State):
         self.flag = True
         self.pose = None
         self.mo = mo
-        
+
         self.readyPose = Pose()
         self.readyPose.position.x = 0.1
-        self.readyPose.position.y = 0.2 
+        self.readyPose.position.y = 0.2
         self.readyPose.position.z = 0.75
         q = quaternion_from_euler(0.0, -math.pi*0.5, 0.0)
         self.readyPose.orientation.x = q[0]
@@ -265,13 +277,13 @@ class MoveToReachyHome(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo("Executing Move Reachy Home State")
-        
+
         while True:
-            
+
             if self.preempt_requested():
                 rospy.loginfo("preempt triggered")
                 return 'preempted'
-                        
+
             self.mo.approach_pose = self.readyPose
             #TODO: Move the arm to the ready pose and send it to movegroup
             rospy.loginfo("MOVING THE ARM TO HOME POSITION...")
@@ -286,7 +298,7 @@ class MoveToReachyHome(smach.State):
                 rospy.sleep(7)
 
             rospy.loginfo("MOVED THE ARM TO HOME POSITION")
-            
+
             self.rate.sleep()
 
             rospy.loginfo(f'There are {len(self.mo.apriltag_home_list)} many objects left')
@@ -295,7 +307,7 @@ class MoveToReachyHome(smach.State):
                     rospy.loginfo("finished everything")
                     rospy.loginfo("------------------------------")
                     return 'rest'
-                else: 
+                else:
                     if self.mo.get_cube:
                         self.mo.get_cube= False
                     else:
@@ -316,14 +328,14 @@ class Rest(smach.State):
 
         self.restPose = Pose()
         self.restPose.position.x = 0.0
-        self.restPose.position.y = 0.2 
+        self.restPose.position.y = 0.2
         self.restPose.position.z = 0.354
         q = quaternion_from_euler(0.0, 0.0, 0.0)
         self.restPose.orientation.x = q[0]
         self.restPose.orientation.y = q[1]
         self.restPose.orientation.z = q[2]
         self.restPose.orientation.w = q[3]
-        
+
     def _state_transition(self,msg):
         rospy.loginfo("IN REST CALLBACK, state transition")
         with self._mutex:
@@ -338,15 +350,15 @@ class Rest(smach.State):
                 return 'preempted'
             '''
             # TODO: @EDJ Could you put the service to rest the arm
-            
-            
-            
-            
-            
-            
+
+
+
+
+
+
             '''
 
-            
+
 
             self.rate.sleep()
 
@@ -368,17 +380,17 @@ class Grasp(smach.State):
             if self.preempt_requested():
                 rospy.loginfo("preempt triggered")
                 return 'preempted'
-            
+
             rospy.loginfo(f"Grasping {self.mo.apriltag_first_elem} object...")
 
             '''
             # TODO: @EDJ Could you put the service to grasp the gripper
-            
-            
-            
-            
-            
-            
+
+
+
+
+
+
             '''
 
 
@@ -407,7 +419,7 @@ class Release(smach.State):
     def execute(self, userdata):
         rospy.loginfo("Executing RELEASE State")
         while True:
-            
+
             if self.preempt_requested():
                     rospy.loginfo("preempt triggered")
                     return 'preempted'
@@ -416,12 +428,12 @@ class Release(smach.State):
 
             '''
             # TODO: @EDJ Could you put the service to release the gripper
-            
-            
-            
-            
-            
-            
+
+
+
+
+
+
             '''
 
             if SIM:
@@ -434,7 +446,7 @@ class Release(smach.State):
             self.mo.apriltag_home_list.pop(0)
             if len(self.mo.apriltag_home_list) != 0:
                 self.mo.apriltag_first_elem = self.mo.apriltag_home_list[0]
-            
+
             rospy.loginfo(f'Remaining objects: {self.mo.apriltag_home_list}')
             rospy.loginfo(f"next apriltag: {self.mo.apriltag_first_elem}")
             self.mo.object_in_hand = False
@@ -453,32 +465,32 @@ def main():
     sm = smach.StateMachine(outcomes=['exit'])
 
     #TODO: create an isntance of move interface and pass it among approach, extend and grasp.
-    # This is important because this object contains all the attributes of the system and must be shared 
-    
+    # This is important because this object contains all the attributes of the system and must be shared
+
     move_interface_object = move_interface.MoveGroupPythonInterfaceTutorial("left")
     # ERROR ABOUT THE ROBOT DESCRIPTION (NEED TO BE CONNECTED TO THE PHYSICAL ROBOT? TEST IT OUT ON THE REAL ROBOT)
 
     # Open the container
     with sm:
         # Add states to the container
-        smach.StateMachine.add('IDLE', Idle(), 
-                               transitions={'reachyHome':'MOVETOREACHYHOME', 
+        smach.StateMachine.add('IDLE', Idle(),
+                               transitions={'reachyHome':'MOVETOREACHYHOME',
                                             'preempted': 'exit'})
 
-        smach.StateMachine.add('MOVETOREACHYHOME', MoveToReachyHome(move_interface_object), 
+        smach.StateMachine.add('MOVETOREACHYHOME', MoveToReachyHome(move_interface_object),
                                transitions={'approach':'APPROACH',
                                             'rest':'REST',
                                             'preempted': 'exit'})
                                             # 'apriltagHome' : 'MOVETOAPRILTAGHOME'})
 
-        smach.StateMachine.add('APPROACH', Approach(move_interface_object), 
+        smach.StateMachine.add('APPROACH', Approach(move_interface_object),
                                transitions={'approach':'APPROACH',
                                             'target_locked':'EXTEND',
                                             'reachyHome':'MOVETOREACHYHOME',
                                             'preempted': 'exit',
                                             'relax':'REST'})
-                                            
-        smach.StateMachine.add('EXTEND', Extend(move_interface_object), 
+
+        smach.StateMachine.add('EXTEND', Extend(move_interface_object),
                                transitions={'approach':'APPROACH',
                                             'target_locked':'GRASP',
                                             'reachyHome':'MOVETOREACHYHOME',
@@ -486,24 +498,24 @@ def main():
                                             'release':'RELEASE',
                                             'relax':'REST'})
 
-        smach.StateMachine.add('GRASP', Grasp(move_interface_object), 
+        smach.StateMachine.add('GRASP', Grasp(move_interface_object),
                                transitions={'reachyHome' : 'MOVETOREACHYHOME',
                                             'preempted': 'exit',
                                             'approach': 'APPROACH'})
 
-        smach.StateMachine.add('REST', Rest(move_interface_object), 
-                               transitions={'idle':'IDLE', 
+        smach.StateMachine.add('REST', Rest(move_interface_object),
+                               transitions={'idle':'IDLE',
                                             'preempted': 'exit'})
 
-        # smach.StateMachine.add('MOVETOAPRILTAGHOME', MoveToAprilTagHome(move_interface_object), 
-        #                        transitions={'release':'RELEASE', 
+        # smach.StateMachine.add('MOVETOAPRILTAGHOME', MoveToAprilTagHome(move_interface_object),
+        #                        transitions={'release':'RELEASE',
         #                                     'preempted': 'exit'})
 
-        smach.StateMachine.add('RELEASE', Release(move_interface_object), 
-                                transitions={'reachyHome':'MOVETOREACHYHOME', 
+        smach.StateMachine.add('RELEASE', Release(move_interface_object),
+                                transitions={'reachyHome':'MOVETOREACHYHOME',
                                             'approach' : 'APPROACH',
                                             'preempted': 'exit'})
-                                            
+
 
     # Execute SMACH pslan
     smach_thread = Thread(target=sm.execute)
@@ -563,7 +575,7 @@ if __name__ == '__main__':
 #         self.apriltagHomePose.orientation.w = q[3]
 
 #         while True:
-            
+
 #             if self.preempt_requested():
 #                 rospy.loginfo("preempt triggered")
 #                 return 'preempted'
@@ -575,24 +587,24 @@ if __name__ == '__main__':
 
 #             #TODO: Move the arm to the ready pose and send it to movegroup
 #             rospy.loginfo(f"MOVING THE ARM TO {self.mo.apriltag_first_elem} HOME POSITION...")
-            
+
 #             #TODO: UNCOMMENT AFTER EXPERIMENT
 #             if not SIM:
 #                 result = self.mo.goToPose(self.apriltagHomePose)
 #             rospy.loginfo("SIMULATING MOVE APRILTAG HOME")
-    
+
 #             #TODO : DELETE BELOW. ONLY FOR SIMULATION
 #             if SIM:
 #                 result = 3
 #                 rospy.sleep(7)
 
 #             rospy.loginfo(f"MOVED THE ARM TO {self.mo.apriltag_first_elem} HOME POSITION")
-            
+
 #             self.rate.sleep()
 
 #             if result == 3:
 #                 rospy.loginfo("------------------------------")
 #                 return 'release'
 
-            
+
 #             self.rate.sleep()

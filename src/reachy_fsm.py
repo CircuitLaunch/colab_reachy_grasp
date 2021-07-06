@@ -76,7 +76,7 @@ class Approach(smach.State):
         # cubeSub = rospy.Subscriber('cubePose', PoseStamped, self._cube_callback)
         # if self.flag:       
         #     self.flag = False
-        #     self.time = rospy.get_time()
+        current_time = rospy.get_time()
             
         # self.mo.lookup_tf()
         
@@ -90,6 +90,9 @@ class Approach(smach.State):
                 relaxReq.side = "left"
                 self.reachyRelax(relaxReq)
                 # return 'relax'
+
+            if rospy.get_time() - current_time > 20:
+                rospy.loginfo("TIMEOUT: Could not find a plan. Going into REST state")
 
             # Update the approach and grasp pose:
             self.mo.lookup_tf()
@@ -246,7 +249,6 @@ class MoveToReachyHome(smach.State):
         smach.State.__init__(self, outcomes=['approach',
                                              'rest',
                                              'preempted'])
-                                            #  apriltagHome''])
         self.rate = rospy.Rate(RATE) # 10hz
         self._mutex = Lock()
         self.flag = True
@@ -469,7 +471,6 @@ def main():
                                transitions={'approach':'APPROACH',
                                             'rest':'REST',
                                             'preempted': 'exit'})
-                                            # 'apriltagHome' : 'MOVETOAPRILTAGHOME'})
 
         smach.StateMachine.add('APPROACH', Approach(move_interface_object), 
                                transitions={'approach':'APPROACH',
@@ -494,10 +495,6 @@ def main():
         smach.StateMachine.add('REST', Rest(move_interface_object), 
                                transitions={'idle':'IDLE', 
                                             'preempted': 'exit'})
-
-        # smach.StateMachine.add('MOVETOAPRILTAGHOME', MoveToAprilTagHome(move_interface_object), 
-        #                        transitions={'release':'RELEASE', 
-        #                                     'preempted': 'exit'})
 
         smach.StateMachine.add('RELEASE', Release(move_interface_object), 
                                 transitions={'reachyHome':'MOVETOREACHYHOME', 

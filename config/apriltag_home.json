@@ -1,0 +1,44 @@
+{
+    "apriltag_5": {
+        "position":{
+            "x" : 0.4,
+            "y" : 0.13,
+            "z" : 0.65
+        },
+        "orientation":{
+            "x" : 0,
+            "y" : 0,
+            "z" : 0,
+            "w" : 0
+        }
+    },
+
+    "apriltag_0": {
+        "position":{
+            "x" : 0.28,
+            "y" : 0.2,
+            "z" : 0.6
+        },
+        "orientation":{
+            "x" : 0,
+            "y" : 0,
+            "z" : 0,
+            "w" : 0
+        }
+    },
+
+    "apriltag_2": {
+        "position":{
+            "x" : 0.28,
+            "y" : 0.2,
+            "z" : 0.6
+        },
+        "orientation":{
+            "x" : 0,
+            "y" : 0,
+            "z" : 0,
+            "w" : 0
+        }
+    }
+
+}

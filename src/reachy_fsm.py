@@ -340,7 +340,8 @@ class MoveToReachyHome(smach.State):
 class Rest(smach.State):
     def __init__(self,mo):
         smach.State.__init__(self, outcomes=['preempted',
-                                             'idle'])
+                                             'idle',
+                                             'exit'])
         self._mutex = Lock()
         self.mo = mo
         self.rate = rospy.Rate(RATE) # 10hz
@@ -539,7 +540,8 @@ def main():
 
         smach.StateMachine.add('REST', Rest(move_interface_object), 
                                transitions={'idle':'IDLE', 
-                                            'preempted': 'exit'})
+                                            'preempted': 'exit',
+                                            'exit': 'exit'})
 
         smach.StateMachine.add('RELEASE', Release(move_interface_object), 
                                 transitions={'reachyHome':'MOVETOREACHYHOME', 

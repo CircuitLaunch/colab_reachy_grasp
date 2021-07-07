@@ -10,7 +10,7 @@ from threading import Lock, Thread, local
 from apriltag_ros.msg import AprilTagDetectionArray
 from geometry_msgs.msg import PoseStamped, Pose
 from std_msgs.msg import String
-from colab_reachy_control.srv import SetGripperPos, SetGripperPosRequest, Relax, RelaxRequest, Zero, ZeroRequest
+from colab_reachy_control.srv import SetGripperPos, SetGripperPosRequest, Relax, RelaxRequest, Zero, ZeroRequest, RestPoseRequest,RestPose
 import time
 import copy
 import move_interface
@@ -347,17 +347,8 @@ class Rest(smach.State):
         # rospy.Subscriber('state_transition', String, self._state_transition)
         self.zero = rospy.ServiceProxy('zero', Zero)
         self.reachyRelax = rospy.ServiceProxy('relax', Relax)
+        self.restPose = rospy.ServiceProxy('rest_pose', RestPose)
 
-        self.restPose = Pose()
-        self.restPose.position.x = 0.0
-        self.restPose.position.y = 0.2 
-        self.restPose.position.z = 0.354
-        q = quaternion_from_euler(0.0, 0.0, 0.0)
-        self.restPose.orientation.x = q[0]
-        self.restPose.orientation.y = q[1]
-        self.restPose.orientation.z = q[2]
-        self.restPose.orientation.w = q[3]
-        
     def _state_transition(self,msg):
         rospy.loginfo("IN REST CALLBACK, state transition")
         with self._mutex:
@@ -374,16 +365,27 @@ class Rest(smach.State):
             # TODO: @EDJ Could you put the service to rest the arm
             '''
             # Set all reachy actuators to zero
-            zeroReq = ZeroRequest()
-            zeroReq.side = 'left'
-            self.zero(zeroReq)
+            # zeroReq = ZeroRequest()
+            # zeroReq.side = 'left'
+            # self.zero(zeroReq)
+
+            self.goToRestPose('left')
+
             # Turn all torque off
             relaxReq = RelaxRequest()
             relaxReq.side = 'left'
             self.reachyRelax(relaxReq)
-            
+            rospy.loginfo('relaxing')
 
             self.rate.sleep()
+            
+            return 'exit'
+
+    def goToRestPose(self, side):
+        restPoseReq = RestPoseRequest()
+        restPoseReq.side = side
+        restPoseReq.speed = 0.1 #Q: WHY DOES THIS CHANGE THE SPEED OF THE ROBOT?
+        self.restPose(restPoseReq)
 
 
 # define state Grasp. This is actually moving the gripper to hold the cube
@@ -408,9 +410,6 @@ class Grasp(smach.State):
             
             rospy.loginfo(f"Grasping {self.mo.apriltag_first_elem} object...")
 
-            '''
-            # TODO: @EDJ Could you put the service to grasp the gripper
-            '''
             gripper = Gripper('left')
             gripper.closeGripper()
 
@@ -448,9 +447,6 @@ class Release(smach.State):
 
             rospy.loginfo(f"Releasing {self.mo.apriltag_first_elem} object...")
 
-            '''
-            # TODO: @EDJ Could you put the service to release the gripper
-            '''
             gripper = Gripper('left')
             gripper.openGripper()
 
@@ -545,10 +541,6 @@ def main():
                                transitions={'idle':'IDLE', 
                                             'preempted': 'exit'})
 
-        # smach.StateMachine.add('MOVETOAPRILTAGHOME', MoveToAprilTagHome(move_interface_object), 
-        #                        transitions={'release':'RELEASE', 
-        #                                     'preempted': 'exit'})
-
         smach.StateMachine.add('RELEASE', Release(move_interface_object), 
                                 transitions={'reachyHome':'MOVETOREACHYHOME', 
                                             'approach' : 'APPROACH',
@@ -568,81 +560,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# # define state Grasp. This is actually moving the gripper to hold the cube
-# class MoveToAprilTagHome(smach.State):
-#     def __init__(self, mo):
-#         smach.State.__init__(self, outcomes=['release',
-#                                              'preempted'])
-#         self.rate = rospy.Rate(RATE) # 10hz
-#         self._mutex = Lock()
-#         self.mo = mo
-
-
-#     def execute(self, userdata):
-#         rospy.loginfo("Executing MOVE APRILTAG HOME State")
-
-#         self.current_apriltagHome = self.mo.apriltag_data[self.mo.apriltag_first_elem]
-#         self.apriltagHomePose = Pose()
-#         self.apriltagHomePose.position.x = self.current_apriltagHome['position']['x']
-#         self.apriltagHomePose.position.y = self.current_apriltagHome['position']['y']
-#         self.apriltagHomePose.position.z = self.current_apriltagHome['position']['z']
-#         q = quaternion_from_euler(0.0, -math.pi*0.5, 0.0)
-#         self.apriltagHomePose.orientation.x = q[0]
-#         self.apriltagHomePose.orientation.y = q[1]
-#         self.apriltagHomePose.orientation.z = q[2]
-#         self.apriltagHomePose.orientation.w = q[3]
-
-#         while True:
-            
-#             if self.preempt_requested():
-#                 rospy.loginfo("preempt triggered")
-#                 return 'preempted'
-
-#             #TODO: UNCOMMENT AFTER EXPERIMENT
-#             self.mo.approach_pose = self.apriltagHomePose
-
-#             rospy.loginfo(f"APRILTAG HOME POSE for {self.mo.apriltag_first_elem} object: {self.apriltagHomePose}")
-
-#             #TODO: Move the arm to the ready pose and send it to movegroup
-#             rospy.loginfo(f"MOVING THE ARM TO {self.mo.apriltag_first_elem} HOME POSITION...")
-            
-#             #TODO: UNCOMMENT AFTER EXPERIMENT
-#             if not SIM:
-#                 result = self.mo.goToPose(self.apriltagHomePose)
-#             rospy.loginfo("SIMULATING MOVE APRILTAG HOME")
-    
-#             #TODO : DELETE BELOW. ONLY FOR SIMULATION
-#             if SIM:
-#                 result = 3
-#                 rospy.sleep(7)
-
-#             rospy.loginfo(f"MOVED THE ARM TO {self.mo.apriltag_first_elem} HOME POSITION")
-            
-#             self.rate.sleep()
-
-#             if result == 3:
-#                 rospy.loginfo("------------------------------")
-#                 return 'release'
-
-            
-#             self.rate.sleep()

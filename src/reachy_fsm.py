@@ -2,6 +2,7 @@
 
 import rospy
 from rospy.core import rospyinfo
+from DXLProxy import *
 from rospy.impl.transport import Transport
 import smach
 from tf.transformations import *
@@ -10,7 +11,7 @@ from threading import Lock, Thread, local
 from apriltag_ros.msg import AprilTagDetectionArray
 from geometry_msgs.msg import PoseStamped, Pose
 from std_msgs.msg import String
-from colab_reachy_control.srv import SetGripperPos, SetGripperPosRequest, Relax, RelaxRequest, Zero, ZeroRequest, RestPoseRequest,RestPose
+from colab_reachy_control.srv import SetGripperPos, WriteRegisters,WriteRegistersRequest, ReadRegisters,SetGripperPosRequest, Relax, RelaxRequest, Zero, ZeroRequest, RestPoseRequest,RestPose
 import time
 import copy
 import move_interface
@@ -65,7 +66,16 @@ class Idle(smach.State):
                 
             self.rate.sleep()
 
-       
+def calcYaw(x, y):
+    minx = 0.2
+    maxx = 0.5 
+    miny = 0.0
+    maxy = 0.3
+    nx = (maxx - x) / (maxx - minx)
+    width = maxy - miny
+    ny = (width - abs(y)) / width
+    return math.pi * (0.16666666666667 * nx + 0.16666666666667 * ny)
+
 # define state Approach
 class Approach(smach.State):
     def __init__(self, mo):
@@ -83,6 +93,8 @@ class Approach(smach.State):
         self.reachyRelax = rospy.ServiceProxy('relax', Relax)
         self.compensator = rospy.ServiceProxy('compensate', TransformPose)
         self.setGripperPos = rospy.ServiceProxy('set_gripper_pos', SetGripperPos)
+
+    
 
     def execute(self, userdata):
         rospy.loginfo("Executing APPROACH State")
@@ -111,9 +123,8 @@ class Approach(smach.State):
 
             if self.mo.get_cube:
                 local_approach_pose = copy.deepcopy(self.mo.grasp_approach_pose)
-                rospy.loginfo(f"GRASPING APPROACH POSE for {self.mo.apriltag_first_elem} object: {local_approach_pose}")
+                # rospy.loginfo(f"GRASPING APPROACH POSE for {self.mo.apriltag_first_elem} object: {local_approach_pose}")
                 gripper = Gripper('left')
-
             else:
                 local_approach_pose = copy.deepcopy(self.mo.release_approach_pose)
                 rospy.loginfo(f"RELEASE APPROACH POSE for {self.mo.apriltag_first_elem} object: {local_approach_pose}")
@@ -122,24 +133,23 @@ class Approach(smach.State):
             #TODO: UNCOMMENT AFTER EXPERIMENT
             if not SIM:
                 # Error compensation
-                # rospy.loginfo("1")
                 transformReq = TransformPoseRequest()
-                # rospy.loginfo("2")
                 transformReq.side = 'left'
-                # rospy.loginfo("3")
                 transformReq.in_pose = local_approach_pose
-                # rospy.loginfo("4")
                 resp_pose = self.compensator(transformReq)
-                # rospy.loginfo("5")
                 if resp_pose.in_bounds == False:
                     rospy.loginfo(f"Requetsed pose: {local_approach_pose} is outside the workspace boundary.")
                     return 'relax'
-                rospy.loginfo(f"ORIGINAL POSE: {local_approach_pose}, COMPENSATED POSE: {resp_pose.out_pose}")
-                # q = quaternion_from_euler(0.0, -math.pi*0.5, 0.0)   
-                # resp_pose.orientation.x = q[0]
-                # resp_pose.orientation.y = q[1]
-                # resp_pose.orientation.z = q[2]
-                # resp_pose.orientation.w = q[3]
+
+                x = resp_pose.out_pose.position.x
+                y = resp_pose.out_pose.position.y
+                yaw = calcYaw(x,y)
+                q = quaternion_from_euler(0.0, -math.pi*0.5, -yaw)
+                resp_pose.out_pose.orientation.x = q[0]
+                resp_pose.out_pose.orientation.y = q[1]
+                resp_pose.out_pose.orientation.z = q[2]
+                resp_pose.out_pose.orientation.w = q[3]
+                rospy.loginfo(f"RELEASE APPROACH POSE for {self.mo.apriltag_first_elem} object: {resp_pose.out_pose}")
                 result = self.mo.goToPose(resp_pose.out_pose)
         
             rospy.loginfo("SIMULATING APPROACH")
@@ -229,9 +239,17 @@ class Extend(smach.State):
             if self.mo.get_cube:
                 local_approach_pose = copy.deepcopy(self.mo.grasp_pose)
             else:
+                x = self.mo.release_pose.position.x
+                y = self.mo.release_pose.position.y
+                yaw = calcYaw(x,y)
+                q = quaternion_from_euler(0, -math.pi*0.5, -yaw)
+                self.mo.release_pose.orientation.x = q[0]
+                self.mo.release_pose.orientation.y = q[1]
+                self.mo.release_pose.orientation.z = q[2]
+                self.mo.release_pose.orientation.w = q[3]
                 local_approach_pose = copy.deepcopy(self.mo.release_pose)
             
-            rospy.loginfo(f"EXTEND POSE for {self.mo.apriltag_first_elem} object: {local_approach_pose}")
+                rospy.loginfo(f"EXTEND POSE for {self.mo.apriltag_first_elem} object: {local_approach_pose}")
            
 
             #TODO: UNCOMMENT AFTER EXPERIMENT
@@ -243,7 +261,7 @@ class Extend(smach.State):
                 if resp_pose.in_bounds == False:
                     rospy.loginfo(f"Requetsed pose: {local_approach_pose} is outside the workspace boundary.")
                     return 'relax'
-                rospy.loginfo(f"ORIGINAL POSE: {local_approach_pose}, COMPENSATED POSE: {resp_pose.out_pose}")
+                # rospy.loginfo(f"ORIGINAL POSE: {local_approach_pose}, COMPENSATED POSE: {resp_pose.out_pose}")
                 # q = quaternion_from_euler(0.0, -math.pi*0.5, 0.0)   
                 # resp_pose.orientation.x = q[0]
                 # resp_pose.orientation.y = q[1]
@@ -316,7 +334,7 @@ class MoveToReachyHome(smach.State):
         self.mo = mo
         
         self.readyPose = Pose()
-        self.readyPose.position.x = 0.1
+        self.readyPose.position.x = 0.15
         self.readyPose.position.y = 0.2 
         self.readyPose.position.z = 0.75
         q = quaternion_from_euler(0.0, -math.pi*0.5, 0.0)
@@ -430,6 +448,10 @@ class Grasp(smach.State):
         self._mutex = Lock()
         self.mo = mo
         self.setGripperPos = rospy.ServiceProxy('set_gripper_pos', SetGripperPos)
+        # self.writeRegSrvProx = rospy.ServiceProxy('dxl_write_registers_service', WriteRegisters)
+        self.dxl_proxy = DXLProxy()
+
+        self.dxl_proxy.writeRegisters([27],[RAM_MOVING_SPEED],[0.2])
 
     def execute(self, userdata):
         rospy.loginfo("Executing GRASP State")
@@ -515,7 +537,7 @@ class Gripper():
     def closeGripper(self):
         setGripperPosReq = SetGripperPosRequest()
         setGripperPosReq.side = self.side
-        setGripperPosReq.angle = -0.4
+        setGripperPosReq.angle = -0.3
         self.setGripperPos(setGripperPosReq)
 
 # main

@@ -1,6 +1,19 @@
 {
     "apriltag_5": {
         "position":{
+            "x" : 0.34,
+            "y" : 0,
+            "z" : 0.66
+        },
+        "orientation":{
+            "x" : 0,
+            "y" : 0,
+            "z" : 0,
+            "w" : 0
+        }
+    },
+    "apriltag_2": {
+        "position":{
             "x" : 0.28,
             "y" : 0.2,
             "z" : 0.6

@@ -450,7 +450,7 @@ class MoveGroupPythonInterfaceTutorial(object):
         # TODO: Calculate the approach pose given the cube pose pose
 
         # ADDED BY LIAM
-        best_pose.position.x = cube_pose.position.x - self.approach_x_offset
+        best_pose.position.x = cube_pose.position.x + self.approach_x_offset
         best_pose.position.y = cube_pose.position.y + self.approach_y_offset
         best_pose.position.z = cube_pose.position.z + self.approach_z_offset
 

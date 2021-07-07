@@ -122,22 +122,39 @@ class Approach(smach.State):
             #TODO: UNCOMMENT AFTER EXPERIMENT
             if not SIM:
                 # Error compensation
-
-                # transformReq = TransformPoseRequest()
-                # transformReq.side = 'left'
-                # transformReq.in_pose = local_approach_pose
-                # resp_pose = self.compensator(transformReq)
-                # if resp_pose.in_bounds == False:
-                #     rospy.loginfo(f"Requetsed pose: {local_approach_pose} is outside the workspace boundary.")
-                #     return 'relax'
-                # rospy.loginfo(f"ORIGINAL POSE: {local_approach_pose}, COMPENSATED POSE: {resp_pose.out_pose}")
-                result = self.mo.goToPose(local_approach_pose)#resp_pose.out_pose)
-
+                # rospy.loginfo("1")
+                transformReq = TransformPoseRequest()
+                # rospy.loginfo("2")
+                transformReq.side = 'left'
+                # rospy.loginfo("3")
+                transformReq.in_pose = local_approach_pose
+                # rospy.loginfo("4")
+                resp_pose = self.compensator(transformReq)
+                # rospy.loginfo("5")
+                if resp_pose.in_bounds == False:
+                    rospy.loginfo(f"Requetsed pose: {local_approach_pose} is outside the workspace boundary.")
+                    return 'relax'
+                rospy.loginfo(f"ORIGINAL POSE: {local_approach_pose}, COMPENSATED POSE: {resp_pose.out_pose}")
+                # q = quaternion_from_euler(0.0, -math.pi*0.5, 0.0)   
+                # resp_pose.orientation.x = q[0]
+                # resp_pose.orientation.y = q[1]
+                # resp_pose.orientation.z = q[2]
+                # resp_pose.orientation.w = q[3]
+                result = self.mo.goToPose(resp_pose.out_pose)
+        
             rospy.loginfo("SIMULATING APPROACH")
             rospy.loginfo(f"-----APPROACHING {self.mo.apriltag_first_elem} -----")
             #TODO: DELTE THE BELOW. ONLY FOR SIMULATING
             if SIM:
-                rospy.sleep(5)
+                transformReq = TransformPoseRequest()
+                transformReq.side = 'left'
+                transformReq.in_pose = local_approach_pose
+                resp_pose = self.compensator(transformReq)
+                if resp_pose.in_bounds == False:
+                    rospy.loginfo(f"Requetsed pose: {local_approach_pose} is outside the workspace boundary.")
+                    return 'relax'
+                rospy.loginfo(f"ORIGINAL POSE: {local_approach_pose}, COMPENSATED POSE: {resp_pose.out_pose}")
+                # rospy.sleep(5)
                 result = 3
 
             if result == 0: # no plan
@@ -219,22 +236,35 @@ class Extend(smach.State):
 
             #TODO: UNCOMMENT AFTER EXPERIMENT
             if not SIM:
-                # transformReq = TransformPoseRequest()
-                # transformReq.side = 'left'
-                # transformReq.in_pose = local_approach_pose
-                # resp_pose = self.compensator(transformReq)
-                # if resp_pose.in_bounds == False:
-                #     rospy.loginfo(f"Requetsed pose: {local_approach_pose} is outside the workspace boundary.")
-                #     return 'relax'
-                # rospy.loginfo(f"ORIGINAL POSE: {local_approach_pose}, COMPENSATED POSE: {resp_pose.out_pose}")
-                result = self.mo.goToPose(local_approach_pose)#resp_pose.out_pose)
+                transformReq = TransformPoseRequest()
+                transformReq.side = 'left'
+                transformReq.in_pose = local_approach_pose
+                resp_pose = self.compensator(transformReq)
+                if resp_pose.in_bounds == False:
+                    rospy.loginfo(f"Requetsed pose: {local_approach_pose} is outside the workspace boundary.")
+                    return 'relax'
+                rospy.loginfo(f"ORIGINAL POSE: {local_approach_pose}, COMPENSATED POSE: {resp_pose.out_pose}")
+                # q = quaternion_from_euler(0.0, -math.pi*0.5, 0.0)   
+                # resp_pose.orientation.x = q[0]
+                # resp_pose.orientation.y = q[1]
+                # resp_pose.orientation.z = q[2]
+                # resp_pose.orientation.w = q[3]
+                result = self.mo.goToPose(resp_pose.out_pose)
 
             rospy.loginfo("SIMULATING EXTEND")
             rospy.loginfo(f"-----EXTENDING {self.mo.apriltag_first_elem} -----")
 
             #TODO: DELETE BELOW. ONLY FOR SIMULATION
             if SIM:
-                rospy.sleep(7)
+                transformReq = TransformPoseRequest()
+                transformReq.side = 'left'
+                transformReq.in_pose = local_approach_pose
+                resp_pose = self.compensator(transformReq)
+                if resp_pose.in_bounds == False:
+                    rospy.loginfo(f"Requetsed pose: {local_approach_pose} is outside the workspace boundary.")
+                    return 'relax'
+                rospy.loginfo(f"ORIGINAL POSE: {local_approach_pose}, COMPENSATED POSE: {resp_pose.out_pose}")
+                # rospy.sleep(7)
                 result = 3
 
             if result == 0: # no plan

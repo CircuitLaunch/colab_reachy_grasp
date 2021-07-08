@@ -206,6 +206,13 @@ class MoveGroupPythonInterfaceTutorial(object):
         self._grasp_y_offset = rospy.get_param("GRASP_Y_OFFSET")
         self._grasp_z_offset = rospy.get_param("GRASP_Z_OFFSET")
         
+        self._release_approach_x_offset = rospy.get_param("RELEASE_APPROACH_X_OFFSET")
+        self._release_approach_y_offset = rospy.get_param("RELEASE_APPROACH_Y_OFFSET")
+        self._release_approach_z_offset = rospy.get_param("RELEASE_APPROACH_Z_OFFSET")
+        self._release_x_offset = rospy.get_param("RELEASE_X_OFFSET")
+        self._release_y_offset = rospy.get_param("RELEASE_Y_OFFSET")
+        self._release_z_offset = rospy.get_param("RELEASE_Z_OFFSET")
+        
 
         telemSub = rospy.Subscriber('dxl_telemetry', Telemetry, self.setTelemetry)
         self._settings_mutex = Lock()
@@ -444,36 +451,57 @@ class MoveGroupPythonInterfaceTutorial(object):
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
             rate.sleep()
 
-    def calc_approach_pose(self, cube_pose):
-        best_pose = geometry_msgs.msg.Pose()
+    # def calc_approach_pose(self, cube_pose):
+    #     best_pose = geometry_msgs.msg.Pose()
 
-        # TODO: Calculate the approach pose given the cube pose pose
+    #     # TODO: Calculate the approach pose given the cube pose pose
 
-        # ADDED BY LIAM
-        best_pose.position.x = cube_pose.position.x + self.approach_x_offset
-        best_pose.position.y = cube_pose.position.y + self.approach_y_offset
-        best_pose.position.z = cube_pose.position.z + self.approach_z_offset
+    #     # ADDED BY LIAM
+    #     best_pose.position.x = cube_pose.position.x + self.approach_x_offset
+    #     best_pose.position.y = cube_pose.position.y + self.approach_y_offset
+    #     best_pose.position.z = cube_pose.position.z + self.approach_z_offset
 
-        quat = quaternion_from_euler (0.0, -1.57, 0.0)
+    #     quat = quaternion_from_euler (0.0, -1.57, 0.0)
 
-        best_pose.orientation.x = quat[0]       
-        best_pose.orientation.y = quat[1]
-        best_pose.orientation.z = quat[2]
-        best_pose.orientation.w = quat[3]
+    #     best_pose.orientation.x = quat[0]       
+    #     best_pose.orientation.y = quat[1]
+    #     best_pose.orientation.z = quat[2]
+    #     best_pose.orientation.w = quat[3]
 
-        # ADDED BY LIAM
+    #     # ADDED BY LIAM
 
-        return best_pose
+    #     return best_pose
 
-    def calc_goal_pose(self, cube_pose):
+    # def calc_goal_pose(self, cube_pose):
+    #     best_pose = geometry_msgs.msg.Pose()
+
+    #     # TODO: Calculate the grasp pose given the cube pose
+        
+    #     # ADDED BY LIAM
+    #     best_pose.position.x = cube_pose.position.x + self.grasp_x_offset
+    #     best_pose.position.y = cube_pose.position.y + self.grasp_y_offset
+    #     best_pose.position.z = cube_pose.position.z + self.grasp_z_offset
+
+    #     quat = quaternion_from_euler (0.0, -1.57, 0.0)
+
+    #     best_pose.orientation.x = quat[0]       
+    #     best_pose.orientation.y = quat[1]
+    #     best_pose.orientation.z = quat[2]
+    #     best_pose.orientation.w = quat[3]
+
+    #     # ADDED BY LIAM
+
+    #     return best_pose
+
+    def calc_pose(self, cube_pose, pose):
         best_pose = geometry_msgs.msg.Pose()
 
         # TODO: Calculate the grasp pose given the cube pose
         
         # ADDED BY LIAM
-        best_pose.position.x = cube_pose.position.x + self.grasp_x_offset
-        best_pose.position.y = cube_pose.position.y + self.grasp_y_offset
-        best_pose.position.z = cube_pose.position.z + self.grasp_z_offset
+        best_pose.position.x = cube_pose.position.x + pose[0]
+        best_pose.position.y = cube_pose.position.y + pose[1]
+        best_pose.position.z = cube_pose.position.z + pose[2]
 
         quat = quaternion_from_euler (0.0, -1.57, 0.0)
 
@@ -499,13 +527,24 @@ class MoveGroupPythonInterfaceTutorial(object):
         self.apriltagHomePose.orientation.w = q[3]
 
     def calc_grasp_poses(self, cube_pose):
-        self.grasp_approach_pose = self.calc_approach_pose(cube_pose)
-        self.grasp_pose = self.calc_goal_pose(cube_pose)
+        # self.grasp_approach_pose = self.calc_approach_pose(cube_pose)
+        # self.grasp_pose = self.calc_goal_pose(cube_pose)
+        self.grasp_approach_pose = self.calc_pose(cube_pose,[self._approach_x_offset,
+                                                             self._approach_y_offset,
+                                                             self._approach_z_offset])
+        self.grasp_pose = self.calc_pose(cube_pose,[self._grasp_x_offset,
+                                                    self._grasp_y_offset,
+                                                    self._grasp_z_offset])
 
     def calc_release_poses(self, apriltag_home_pose):
-        self.release_approach_pose = self.calc_approach_pose(apriltag_home_pose)
-        self.release_pose = self.calc_goal_pose(apriltag_home_pose)
-
+        # self.release_approach_pose = self.calc_approach_pose(apriltag_home_pose)
+        # self.release_pose = self.calc_goal_pose(apriltag_home_pose)
+        self.release_approach_pose = self.calc_pose(apriltag_home_pose,[self._release_approach_x_offset,
+                                                                        self._release_approach_y_offset,
+                                                                        self._release_approach_z_offset])
+        self.release_pose = self.calc_pose(apriltag_home_pose,[self._release_x_offset,
+                                                                self._release_y_offset,
+                                                                self._release_z_offset])
 
     def distance(self, pose1, pose2):
         dx = pose1.position.x - pose2.position.x
@@ -513,25 +552,6 @@ class MoveGroupPythonInterfaceTutorial(object):
         dz = pose1.position.z - pose2.position.z
         return math.sqrt(dx*dx + dy*dy + dz*dz)
 
-
-
-    # def go_to_pose(self, pose):
-
-    #     self.move_group.set_pose_target(pose)
-    #     plan = self.move_group.plan()
-    #     rospy.loginfo("pose is")
-    #     rospy.loginfo(pose)
-    #     rospy.loginfo(plan)
-    #     if plan[0]:   
-    #         rospy.loginfo("FOUND PLAN") 
-    #         self.move_group.execute(plan[1], wait=False)
-    #         self.trajectory_in_progress = True
-    #         return True
-    #     else:
-    #         self.trajectory_in_progress = False
-    #         rospy.loginfo("no plan")
-    #         # local_grasp_approach_pose = copy.deepcopy(self.grasp_approach_pose)
-    #         return False
     def goToPose(self, pose):
         # error compensation here
         self.move_group.set_pose_target(pose)
@@ -556,13 +576,13 @@ class MoveGroupPythonInterfaceTutorial(object):
                 # rospy.loginfo("distance: ")
                 # rospy.loginfo(self.distance(self.grasp_approach_pose, pose))
                 
-                if self.distance(self.grasp_approach_pose, pose) > self.min_approach_error:
-                    rospy.loginfo("target has moved. aborting current trj.")
-                    # abort current trajectory
-                    self.abort_trajectory()
-                    # trigger new trajectory
-                    self.isExecuting = False
-                    result = 1 # target moved
+                # if self.distance(self.grasp_approach_pose, pose) > self.min_approach_error:
+                #     rospy.loginfo("target has moved. aborting current trj.")
+                #     # abort current trajectory
+                #     self.abort_trajectory()
+                #     # trigger new trajectory
+                #     self.isExecuting = False
+                #     result = 1 # target moved
 
             execThread.join()
 

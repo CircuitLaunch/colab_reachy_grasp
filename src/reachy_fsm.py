@@ -120,12 +120,13 @@ class Approach(smach.State):
             self.mo.lookup_tf()
 
             self.rate.sleep()
-
+            rospy.loginfo(f"approach state get cube :{self.mo.get_cube}")
+            # grasp approach
             if self.mo.get_cube:
                 local_approach_pose = copy.deepcopy(self.mo.grasp_approach_pose)
                 # rospy.loginfo(f"GRASPING APPROACH POSE for {self.mo.apriltag_first_elem} object: {local_approach_pose}")
-                gripper = Gripper('left')
-            else:
+                # gripper = Gripper('left')
+            else: # release approach
                 local_approach_pose = copy.deepcopy(self.mo.release_approach_pose)
                 rospy.loginfo(f"RELEASE APPROACH POSE for {self.mo.apriltag_first_elem} object: {local_approach_pose}")
 
@@ -225,7 +226,9 @@ class Extend(smach.State):
     def execute(self, userdata):
         rospy.loginfo("Executing EXTEND State")
 
-        local_approach_pose = geometry_msgs.msg.Pose()
+        rospy.loginfo(f"extend state get cube :{self.mo.get_cube}")
+
+        local_extend_pose = geometry_msgs.msg.Pose()
         while True:
 
             if self.preempt_requested():
@@ -237,29 +240,41 @@ class Extend(smach.State):
             self.rate.sleep()
 
             if self.mo.get_cube:
-                local_approach_pose = copy.deepcopy(self.mo.grasp_pose)
+                local_extend_pose = copy.deepcopy(self.mo.grasp_pose)
             else:
-                x = self.mo.release_pose.position.x
-                y = self.mo.release_pose.position.y
-                yaw = calcYaw(x,y)
-                q = quaternion_from_euler(0, -math.pi*0.5, -yaw)
-                self.mo.release_pose.orientation.x = q[0]
-                self.mo.release_pose.orientation.y = q[1]
-                self.mo.release_pose.orientation.z = q[2]
-                self.mo.release_pose.orientation.w = q[3]
-                local_approach_pose = copy.deepcopy(self.mo.release_pose)
+                # x = self.mo.release_pose.position.x
+                # y = self.mo.release_pose.position.y
+                # yaw = calcYaw(x,y)
+                # q = quaternion_from_euler(0, -math.pi*0.5, -yaw)
+                # self.mo.release_pose.orientation.x = q[0]
+                # self.mo.release_pose.orientation.y = q[1]
+                # self.mo.release_pose.orientation.z = q[2]
+                # self.mo.release_pose.orientation.w = q[3]
+                local_extend_pose = copy.deepcopy(self.mo.release_pose)
             
-                rospy.loginfo(f"EXTEND POSE for {self.mo.apriltag_first_elem} object: {local_approach_pose}")
+                rospy.loginfo(f"EXTEND POSE for {self.mo.apriltag_first_elem} object: {local_extend_pose}")
            
 
             #TODO: UNCOMMENT AFTER EXPERIMENT
             if not SIM:
                 transformReq = TransformPoseRequest()
                 transformReq.side = 'left'
-                transformReq.in_pose = local_approach_pose
+                transformReq.in_pose = local_extend_pose
                 resp_pose = self.compensator(transformReq)
+                
+                # if not self.mo.get_cube:
+                x = resp_pose.out_pose.position.x
+                y = resp_pose.out_pose.position.y
+                yaw = calcYaw(x,y)
+                q = quaternion_from_euler(0, -math.pi*0.5, -yaw)
+                resp_pose.out_pose.orientation.x = q[0]
+                resp_pose.out_pose.orientation.y = q[1]
+                resp_pose.out_pose.orientation.z = q[2]
+                resp_pose.out_pose.orientation.w = q[3]
+
+
                 if resp_pose.in_bounds == False:
-                    rospy.loginfo(f"Requetsed pose: {local_approach_pose} is outside the workspace boundary.")
+                    rospy.loginfo(f"Requetsed pose: {local_extend_pose} is outside the workspace boundary.")
                     return 'relax'
                 # rospy.loginfo(f"ORIGINAL POSE: {local_approach_pose}, COMPENSATED POSE: {resp_pose.out_pose}")
                 # q = quaternion_from_euler(0.0, -math.pi*0.5, 0.0)   
@@ -276,12 +291,12 @@ class Extend(smach.State):
             if SIM:
                 transformReq = TransformPoseRequest()
                 transformReq.side = 'left'
-                transformReq.in_pose = local_approach_pose
+                transformReq.in_pose = local_extend_pose
                 resp_pose = self.compensator(transformReq)
                 if resp_pose.in_bounds == False:
-                    rospy.loginfo(f"Requetsed pose: {local_approach_pose} is outside the workspace boundary.")
+                    rospy.loginfo(f"Requetsed pose: {local_extend_pose} is outside the workspace boundary.")
                     return 'relax'
-                rospy.loginfo(f"ORIGINAL POSE: {local_approach_pose}, COMPENSATED POSE: {resp_pose.out_pose}")
+                rospy.loginfo(f"ORIGINAL POSE: {local_extend_pose}, COMPENSATED POSE: {resp_pose.out_pose}")
                 # rospy.sleep(7)
                 result = 3
 
@@ -334,7 +349,7 @@ class MoveToReachyHome(smach.State):
         self.mo = mo
         
         self.readyPose = Pose()
-        self.readyPose.position.x = 0.15
+        self.readyPose.position.x = 0.05
         self.readyPose.position.y = 0.2 
         self.readyPose.position.z = 0.75
         q = quaternion_from_euler(0.0, -math.pi*0.5, 0.0)
@@ -360,8 +375,8 @@ class MoveToReachyHome(smach.State):
             #TODO: UNCOMMENT AFTER EXPERIMENT
             if not SIM:
                 result = self.mo.goToPose(self.readyPose)
-            rospy.loginfo("SIMULATING MOVE REACHY HOME")
             if SIM:
+                rospy.loginfo("SIMULATING MOVE REACHY HOME")
                 result = 3
                 rospy.sleep(7)
 
@@ -376,6 +391,7 @@ class MoveToReachyHome(smach.State):
                     rospy.loginfo("------------------------------")
                     return 'rest'
                 else: 
+                    rospy.loginfo(f"get_cube state in reachy home: {self.mo.get_cube}")
                     if self.mo.get_cube:
                         self.mo.get_cube= False
                     else:
@@ -417,6 +433,8 @@ class Rest(smach.State):
             # zeroReq = ZeroRequest()
             # zeroReq.side = 'left'
             # self.zero(zeroReq)
+            gripper = Gripper('left')
+            gripper.closeGripper()
 
             self.goToRestPose('left')
 
@@ -433,7 +451,7 @@ class Rest(smach.State):
     def goToRestPose(self, side):
         restPoseReq = RestPoseRequest()
         restPoseReq.side = side
-        restPoseReq.speed = 0.1 #Q: WHY DOES THIS CHANGE THE SPEED OF THE ROBOT?
+        restPoseReq.speed = 0.05 #Q: WHY DOES THIS CHANGE THE SPEED OF THE ROBOT?
         self.restPose(restPoseReq)
 
 
@@ -531,14 +549,27 @@ class Gripper():
     def openGripper(self):
         setGripperPosReq = SetGripperPosRequest()
         setGripperPosReq.side = self.side
-        setGripperPosReq.angle = 0.7
+        setGripperPosReq.angle = self.deg_to_rad(190)
+        rospy.loginfo(f"angle for open gripper: {setGripperPosReq.angle}")
         self.setGripperPos(setGripperPosReq)
 
     def closeGripper(self):
         setGripperPosReq = SetGripperPosRequest()
         setGripperPosReq.side = self.side
-        setGripperPosReq.angle = -0.3
+        setGripperPosReq.angle = self.deg_to_rad(144)
+        rospy.loginfo(f"angle for close gripper: {setGripperPosReq.angle}")
         self.setGripperPos(setGripperPosReq)
+
+    def deg_to_rad(self, dynamixel_ang):
+        '''
+        dynamixel degree to reachy compatible rad
+        '''
+        dynamixel_step = dynamixel_ang/0.29
+        reachy_step = dynamixel_step - 512
+        reachy_deg = reachy_step * 0.29
+        reachy_rad = math.radians(reachy_deg)
+        return reachy_rad
+
 
 # main
 def main():

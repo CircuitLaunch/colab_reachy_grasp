@@ -371,7 +371,7 @@ class MoveGroupPythonInterfaceTutorial(object):
         '''
         sets fields apriltag data that can be used in reachy_fsm
         '''
-        f = open('../config/apriltag_home.json',"r")
+        f = open('~/catkin_ws/src/colab_reachy_grasp/config/apriltag_home.json',"r")
         self.apriltag_data = json.loads(f.read())
         self.apriltag_home_list = list(self.apriltag_data.keys())
         self.apriltag_first_elem = self.apriltag_home_list[0]

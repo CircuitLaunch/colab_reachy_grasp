@@ -22,6 +22,7 @@ from threading import Lock, Thread
 import pdb
 from colab_reachy_control.msg import Telemetry
 import json
+import rospkg
 ## END_SUB_TUTORIAL
 
 
@@ -371,7 +372,13 @@ class MoveGroupPythonInterfaceTutorial(object):
         '''
         sets fields apriltag data that can be used in reachy_fsm
         '''
-        f = open('~/catkin_ws/src/colab_reachy_grasp/config/apriltag_home.json',"r")
+        # get an instance of RosPack with the default search paths
+        rospack = rospkg.RosPack()
+
+        # get the file path for rospy_tutorials
+        path = rospack.get_path('colab_reachy_grasp')
+
+        f = open(f'{path}/config/apriltag_home.json',"r")
         self.apriltag_data = json.loads(f.read())
         self.apriltag_home_list = list(self.apriltag_data.keys())
         self.apriltag_first_elem = self.apriltag_home_list[0]
